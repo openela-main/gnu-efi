@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Wed, 15 Jan 2020 13:07:49 -0500
+Subject: [PATCH] Fix the arch subdirs in .gitignore.
+
+Currently they'll exclude e.g. inc/x64/ by accident; this makes it only
+apply to the top level.
+
+Also adds vim temp files to the ignore list.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ .gitignore | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 014f7d02f46..3e96a65bb43 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,12 +1,13 @@
++.*.sw?
+ *.efi
+ *.efi.debug
+ *.o
+ *.a
+ *.tar.*
+ *.tar
+-aa64
+-arm
+-ia32
+-ia64
+-mips64el
+-x64
++/aa64/
++/arm/
++/ia32/
++/ia64/
++/mips64el/
++/x64/

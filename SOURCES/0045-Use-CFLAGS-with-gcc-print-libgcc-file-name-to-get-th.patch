@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Wed, 15 Jan 2020 13:10:11 -0500
+Subject: [PATCH] Use CFLAGS with "gcc -print-libgcc-file-name" to get the
+ right one.
+
+This makes us use CFLAGS when trying to find libgcc, so we don't get the
+one with the wrong endian or float ABI.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 15af35e6e26..de88bcd0231 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -181,10 +181,6 @@ endif
+ endif
+ endif
+ 
+-ifneq ($(ARCH),arm)
+-export LIBGCC=$(shell $(CC) $(ARCH3264) -print-libgcc-file-name)
+-endif
+-
+ ifeq ($(ARCH),arm)
+ CFLAGS += -marm
+ endif
+@@ -223,3 +219,7 @@ endif
+ ASFLAGS += $(ARCH3264)
+ LDFLAGS	+= -nostdlib --warn-common --no-undefined --fatal-warnings \
+ 	   --build-id=sha1
++
++ifneq ($(ARCH),arm)
++export LIBGCC=$(shell $(CC) $(CFLAGS) $(ARCH3264) -print-libgcc-file-name)
++endif

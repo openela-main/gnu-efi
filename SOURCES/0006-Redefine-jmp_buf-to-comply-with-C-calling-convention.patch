@@ -1,0 +1,131 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Fri, 15 Mar 2019 09:32:06 -0400
+Subject: [PATCH] Redefine jmp_buf to comply with C calling convention.
+
+Signed-off-by: Joakim Tjernlund <Joakim.Tjernlund@infinera.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ apps/setjmp.c                 | 6 +++---
+ inc/aarch64/efisetjmp_arch.h  | 2 +-
+ inc/arm/efisetjmp_arch.h      | 2 +-
+ inc/efisetjmp.h               | 4 ++--
+ inc/ia32/efisetjmp_arch.h     | 2 +-
+ inc/ia64/efisetjmp_arch.h     | 2 +-
+ inc/mips64el/efisetjmp_arch.h | 2 +-
+ inc/x86_64/efisetjmp_arch.h   | 2 +-
+ 8 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/apps/setjmp.c b/apps/setjmp.c
+index bd70c11b0ba..b20070e7c95 100644
+--- a/apps/setjmp.c
++++ b/apps/setjmp.c
+@@ -12,12 +12,12 @@ efi_main(
+ 	int rc;
+ 
+ 	InitializeLib(image_handle, systab);
+-	rc = setjmp(&env);
++	rc = setjmp(env);
+ 	Print(L"setjmp() = %d\n", rc);
+ 
+ 	if (rc == 3) {
+ 		Print(L"3 worked\n");
+-		longjmp(&env, 0);
++		longjmp(env, 0);
+ 		return 0;
+ 	}
+ 
+@@ -26,6 +26,6 @@ efi_main(
+ 		return 0;
+ 	}
+ 
+-	longjmp(&env, 3);
++	longjmp(env, 3);
+ 	return 0;
+ }
+diff --git a/inc/aarch64/efisetjmp_arch.h b/inc/aarch64/efisetjmp_arch.h
+index abd7a0e9ad9..8dbce07821f 100644
+--- a/inc/aarch64/efisetjmp_arch.h
++++ b/inc/aarch64/efisetjmp_arch.h
+@@ -28,6 +28,6 @@ typedef struct {
+ 	UINT64	D13;
+ 	UINT64	D14;
+ 	UINT64	D15;
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_AARCH64_SETJMP_H */
+diff --git a/inc/arm/efisetjmp_arch.h b/inc/arm/efisetjmp_arch.h
+index 3a09ea5fa52..17f5dc0facb 100644
+--- a/inc/arm/efisetjmp_arch.h
++++ b/inc/arm/efisetjmp_arch.h
+@@ -16,6 +16,6 @@ typedef struct {
+ 	UINT32 R12;
+ 	UINT32 R13;
+ 	UINT32 R14;
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_ARM_SETJMP_H */
+diff --git a/inc/efisetjmp.h b/inc/efisetjmp.h
+index 58a93a7e64f..de69194b4f9 100644
+--- a/inc/efisetjmp.h
++++ b/inc/efisetjmp.h
+@@ -4,7 +4,7 @@
+ #include "eficompiler.h"
+ #include "efisetjmp_arch.h"
+ 
+-extern UINTN setjmp(jmp_buf *env) __attribute__((returns_twice));
+-extern VOID longjmp(jmp_buf *env, UINTN value) __attribute__((noreturn));
++extern UINTN setjmp(jmp_buf env) __attribute__((returns_twice));
++extern VOID longjmp(jmp_buf env, UINTN value) __attribute__((noreturn));
+ 
+ #endif /* GNU_EFI_SETJMP_H */
+diff --git a/inc/ia32/efisetjmp_arch.h b/inc/ia32/efisetjmp_arch.h
+index 17184e75a2d..a5c1a81c969 100644
+--- a/inc/ia32/efisetjmp_arch.h
++++ b/inc/ia32/efisetjmp_arch.h
+@@ -10,6 +10,6 @@ typedef struct {
+ 	UINT32	Ebp;
+ 	UINT32	Esp;
+ 	UINT32	Eip;
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_IA32_SETJMP_H */
+diff --git a/inc/ia64/efisetjmp_arch.h b/inc/ia64/efisetjmp_arch.h
+index 3afa04426f5..ceda4481d98 100644
+--- a/inc/ia64/efisetjmp_arch.h
++++ b/inc/ia64/efisetjmp_arch.h
+@@ -42,6 +42,6 @@ typedef struct {
+ 	UINT64	Predicates;
+ 	UINT64	LoopCount;
+ 	UINT64	FPSR;
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_IA64_SETJMP_H */
+diff --git a/inc/mips64el/efisetjmp_arch.h b/inc/mips64el/efisetjmp_arch.h
+index fd17f1fc6d4..2b8f756eb75 100644
+--- a/inc/mips64el/efisetjmp_arch.h
++++ b/inc/mips64el/efisetjmp_arch.h
+@@ -29,6 +29,6 @@ typedef struct {
+ 	UINT64	F30;
+ 	UINT64	F31;
+ #endif
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_MIPS64EL_SETJMP_H */
+diff --git a/inc/x86_64/efisetjmp_arch.h b/inc/x86_64/efisetjmp_arch.h
+index a489993c174..b1ad1fe3087 100644
+--- a/inc/x86_64/efisetjmp_arch.h
++++ b/inc/x86_64/efisetjmp_arch.h
+@@ -17,6 +17,6 @@ typedef struct {
+ 	UINT64	Rip;
+ 	UINT64	MxCsr;
+ 	UINT8	XmmBuffer[160]; // XMM6 - XMM15
+-} ALIGN(JMPBUF_ALIGN) jmp_buf;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
+ 
+ #endif /* GNU_EFI_X86_64_SETJMP_H */

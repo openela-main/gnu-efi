@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Fri, 15 Mar 2019 09:48:10 -0400
+Subject: [PATCH] Make.rules incomplete/wrong; make -r failure
+
+Make.rules is not complete; in particular it lacks a %.o: %.S rule.
+This happens to work due to the builtin make rule to that effect. but
+building with make -r, or building as a sub-make of an environment that
+uses make -r (or MAKEFLAGS += -r) causes it to break.
+
+In general, make -r is strongly preferred, and Make.rules seems to have
+been created explicitly to support this.
+
+To further complicate things, the rule %.S: %.c causes a completely
+incomprehensible error message. This rule is wrong, it should be %.s:
+%.c not %.S: %.c.
+
+Finally, the rule %.E: %.c is normally %.i: %.c; .i is the normal
+extension for preprocessed C source. The equivalent rule for assembly is
+%.s: %.S.
+
+Signed-off-by: H. Peter Anvin <hpa@users.sf.net>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Make.rules | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/Make.rules b/Make.rules
+index 5b1c2862e1b..8cb93b0a039 100644
+--- a/Make.rules
++++ b/Make.rules
+@@ -51,8 +51,14 @@
+ %.o: %.c
+ 	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+ 
+-%.S: %.c
++%.s: %.c
+ 	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -S $< -o $@
+ 
+-%.E: %.c
++%.i: %.c
++	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -E $< -o $@
++
++%.o: %.S
++	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
++
++%.s: %.S
+ 	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -E $< -o $@

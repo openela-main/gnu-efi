@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Mon, 28 Oct 2019 07:48:52 -0400
+Subject: [PATCH] Bump revision to VERSION = 3.0.11
+
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index a15513dcbba..84f07d33a48 100644
+--- a/Makefile
++++ b/Makefile
+@@ -34,7 +34,7 @@
+ #    SUCH DAMAGE.
+ #
+ 
+-VERSION = 3.0.10
++VERSION = 3.0.11
+ 
+ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+ SRCDIR = $(dir $(MKFILE_PATH))

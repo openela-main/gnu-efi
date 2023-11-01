@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Fri, 25 Oct 2019 15:39:35 -0400
+Subject: [PATCH] Make: make "make DESTDIR=../foo install" work right.
+
+This makes the normal DESTDIR= variable work on the command line, and
+makes relative paths always relative to the top-level directory.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 696028dd6c2..157559d20ee 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -47,7 +47,19 @@ ARCHES=aa64 arm ia32 ia64 mips64el x64
+ # Where to install the package. GNU-EFI will create and access
+ # lib and include under the root
+ #
+-INSTALLROOT  := /
++DESTDIR ?= /
++ifeq ($(origin INSTALLROOT),undefined)
++INSTALLROOT = $(DESTDIR)
++endif
++
++empty :=
++space := $(empty) $(empty)
++stripped = $(subst $(space),/,$(strip $(subst /,$(space),$(1))))
++unstripped = $(subst $(space),/,$(subst /,$(space),$(1)))
++is_absolute = $(subst $(call stripped,$(1)),$(empty),$(call unstripped,$(1)))
++
++override INSTALLROOT:=$(if $(call is_absolute,$(INSTALLROOT)),,$(TOPDIR)/)$(INSTALLROOT)
++
+ PREFIX       := /usr/local
+ LIBDIR 	     := $(PREFIX)/lib
+ INSTALL	     := install

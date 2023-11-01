@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Tue, 8 Jan 2019 11:19:25 -0500
+Subject: [PATCH] Fix typeo in efierr.h EFI_WARN_UNKNOWN_GLYPH definition.
+
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+Signed-off-by: manison <manison@users.sf.net>
+---
+ inc/efierr.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/inc/efierr.h b/inc/efierr.h
+index dfd3d3cf486..d351c1ca225 100644
+--- a/inc/efierr.h
++++ b/inc/efierr.h
+@@ -58,7 +58,7 @@ Revision History
+ #define EFI_INVALID_LANGUAGE            EFIERR(32)
+ #define EFI_COMPROMISED_DATA            EFIERR(33)
+ 
+-#define EFI_WARN_UNKOWN_GLYPH           EFIWARN(1)
++#define EFI_WARN_UNKNOWN_GLYPH          EFIWARN(1)
+ #define EFI_WARN_DELETE_FAILURE         EFIWARN(2)
+ #define EFI_WARN_WRITE_FAILURE          EFIWARN(3)
+ #define EFI_WARN_BUFFER_TOO_SMALL       EFIWARN(4)

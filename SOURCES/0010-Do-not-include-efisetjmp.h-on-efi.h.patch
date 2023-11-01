@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: leo <leo.sartre@geebol.fr>
+Date: Wed, 15 May 2019 05:32:21 +0200
+Subject: [PATCH] Do not include efisetjmp.h on efi.h
+
+People than really want to use efisetjmp implementation can include
+the header on their own.
+
+Signed-off-by: leo <leo.sartre@geebol.fr>
+---
+ apps/setjmp.c | 1 +
+ inc/efi.h     | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/setjmp.c b/apps/setjmp.c
+index b20070e7c95..d9e0f290dd2 100644
+--- a/apps/setjmp.c
++++ b/apps/setjmp.c
+@@ -1,6 +1,7 @@
+ 
+ #include <efi.h>
+ #include <efilib.h>
++#include <efisetjmp.h>
+ 
+ EFI_STATUS
+ efi_main(
+diff --git a/inc/efi.h b/inc/efi.h
+index 9cbc22dc370..2ddd53e0d95 100644
+--- a/inc/efi.h
++++ b/inc/efi.h
+@@ -57,6 +57,5 @@ Revision History
+ #include "efiudp.h"
+ #include "efitcp.h"
+ #include "efipoint.h"
+-#include "efisetjmp.h"
+ 
+ #endif

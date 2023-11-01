@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 19 Nov 2019 13:23:14 -0500
+Subject: [PATCH] Switch to -fPIE
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 01269660ab8..15af35e6e26 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -193,10 +193,10 @@ endif
+ INCDIR  += -I$(SRCDIR) -I$(TOPDIR)/inc -I$(TOPDIR)/inc/$(ARCH) \
+            -I$(TOPDIR)/inc/protocol
+ 
+-# Only enable -fpic for non MinGW compilers (unneeded on MinGW)
++# Only enable -fPIE for non MinGW compilers (unneeded on MinGW)
+ GCCMACHINE := $(shell $(CC) -dumpmachine)
+ ifneq (mingw32,$(findstring mingw32, $(GCCMACHINE)))
+-  CFLAGS += -fpic
++  CFLAGS += -fPIE
+ endif
+ 
+ IS_FREEBSD = $(findstring FreeBSD, $(OS))

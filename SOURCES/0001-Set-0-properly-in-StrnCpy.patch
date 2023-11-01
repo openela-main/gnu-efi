@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gary Lin <glin@suse.com>
+Date: Tue, 9 Oct 2018 18:35:21 +0800
+Subject: [PATCH] Set '\0' properly in StrnCpy()
+
+The arguments to SetMem() were wrong. Besides, SetMem() should start at
+"Dest + Size" since "Size" will be smaller than "Len" if they are not
+equal.
+
+Signed-off-by: Gary Lin <glin@suse.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/runtime/rtstr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/runtime/rtstr.c b/lib/runtime/rtstr.c
+index 129c9f21ad5..73965cae192 100644
+--- a/lib/runtime/rtstr.c
++++ b/lib/runtime/rtstr.c
+@@ -71,7 +71,7 @@ RtStrnCpy (
+ {
+     UINTN Size = RtStrnLen(Src, Len);
+     if (Size != Len)
+-    RtSetMem(Dest + Len, '\0', (UINT8)((Len - Size) * sizeof(CHAR16)));
++        RtSetMem(Dest + Size, (Len - Size) * sizeof(CHAR16), '\0');
+     RtCopyMem(Dest, Src, Size * sizeof(CHAR16));
+ }
+ 

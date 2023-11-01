@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: leo <leo.sartre@geebol.fr>
+Date: Tue, 14 May 2019 07:44:28 +0200
+Subject: [PATCH] efiapi.h: fix EventGroup parameter of EFI_CREATE_EVENT_EX
+ prototype
+
+From UEFI specifications, this parameter is a pointer, see
+https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf
+page 148 for reference.
+
+Signed-off-by: leo <leo.sartre@geebol.fr>
+---
+ inc/efiapi.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/inc/efiapi.h b/inc/efiapi.h
+index e7d2abd79de..bdf5de26a3f 100644
+--- a/inc/efiapi.h
++++ b/inc/efiapi.h
+@@ -576,7 +576,7 @@ EFI_STATUS
+     IN EFI_TPL                  NotifyTpl,
+     IN EFI_EVENT_NOTIFY         NotifyFunction OPTIONAL,
+     IN const VOID               *NotifyContext OPTIONAL,
+-    IN const EFI_GUID           EventGroup OPTIONAL,
++    IN const EFI_GUID           *EventGroup OPTIONAL,
+     OUT EFI_EVENT               *Event
+     );
+ 

@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ben Wolsieffer <benwolsieffer@gmail.com>
+Date: Tue, 5 Nov 2019 00:09:12 -0500
+Subject: [PATCH] Fix ARCH on ARMv6.
+
+Extends the armv7 ARCH sed expression to work correctly on armv6.
+
+Signed-off-by: Ben Wolsieffer <benwolsieffer@gmail.com>
+---
+ Make.defaults | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index ba743f17893..5695b2ac1ab 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -62,12 +62,12 @@ OBJCOPY      := $(prefix)$(CROSS_COMPILE)objcopy
+ 
+ # Host/target identification
+ OS           := $(shell uname -s)
+-HOSTARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
+-ARCH         ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
++HOSTARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
++ARCH         ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
+ 
+ # Get ARCH from the compiler if cross compiling 
+ ifneq ($(CROSS_COMPILE),)
+-  override ARCH := $(shell $(CC) -dumpmachine | cut -f1 -d-| sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
++  override ARCH := $(shell $(CC) -dumpmachine | cut -f1 -d-| sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
+ endif
+ 
+ # FreeBSD (and possibly others) reports amd64 instead of x86_64

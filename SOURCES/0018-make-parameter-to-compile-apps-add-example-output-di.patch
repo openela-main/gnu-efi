@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: sgerwk <sgerwk@aol.com>
+Date: Thu, 2 May 2019 12:57:16 +0200
+Subject: [PATCH] make parameter to compile apps + add example output directory
+
+---
+ README.gnuefi | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/README.gnuefi b/README.gnuefi
+index 512698c28b4..a65e5f9042a 100644
+--- a/README.gnuefi
++++ b/README.gnuefi
+@@ -108,10 +108,10 @@ the make command line (e.g., "make ARCH=ia64").
+ ** Building
+ 
+ To build the sample EFI applications provided in subdirectory "apps",
+-simply invoke "make" in the toplevel directory (the directory
++simply invoke "make apps" in the toplevel directory (the directory
+ containing this README file).  This should build lib/libefi.a and
+ gnuefi/libgnuefi.a first and then all the EFI applications such as a
+-apps/t6.efi.
++x86_64/apps/t6.efi.
+ 
+ 
+ ** Running

@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Fri, 25 Oct 2019 15:36:18 -0400
+Subject: [PATCH] Make: make TOPDIR actually work and get rid of unused CDIR
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults   | 2 +-
+ apps/Makefile   | 6 ++----
+ gnuefi/Makefile | 6 ++----
+ inc/Makefile    | 5 +----
+ lib/Makefile    | 2 +-
+ 5 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index b8a3e07b681..696028dd6c2 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -34,7 +34,7 @@
+ #    SUCH DAMAGE.
+ #
+ 
+-TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
++TOPDIR ?= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+ 
+ ARCHES=aa64 arm ia32 ia64 mips64el x64
+ 
+diff --git a/apps/Makefile b/apps/Makefile
+index 04cf251cb2f..3b96f153a23 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -37,12 +37,10 @@
+ SRCDIR = .
+ 
+ VPATH = $(SRCDIR)
+-
+-include $(SRCDIR)/../Make.defaults
+-
+ TOPDIR = $(SRCDIR)/..
+ 
+-CDIR=$(TOPDIR)/..
++include $(SRCDIR)/../Make.defaults
++
+ LINUX_HEADERS	= /usr/src/sys/build
+ CPPFLAGS	+= -D__KERNEL__ -I$(LINUX_HEADERS)/include
+ CRTOBJS		= $(TOPDIR)/$(ARCH)/gnuefi/crt0-efi-$(ARCH).o
+diff --git a/gnuefi/Makefile b/gnuefi/Makefile
+index 09b40cc421e..bea629b0b29 100644
+--- a/gnuefi/Makefile
++++ b/gnuefi/Makefile
+@@ -37,12 +37,10 @@
+ SRCDIR = .
+ 
+ VPATH = $(SRCDIR)
+-
+-include $(SRCDIR)/../Make.defaults
+-
+ TOPDIR = $(SRCDIR)/..
+ 
+-CDIR=$(TOPDIR)/..
++include $(SRCDIR)/../Make.defaults
++
+ FILES	= reloc_$(ARCH)  
+ 
+ OBJS	= $(FILES:%=%.o)
+diff --git a/inc/Makefile b/inc/Makefile
+index dd36bb0103d..13022fd6ae1 100644
+--- a/inc/Makefile
++++ b/inc/Makefile
+@@ -1,12 +1,9 @@
+ SRCDIR = .
+ 
+ VPATH = $(SRCDIR)
+-
+-include $(SRCDIR)/../Make.defaults
+-
+ TOPDIR = $(SRCDIR)/..
+ 
+-CDIR=$(TOPDIR)/..
++include $(SRCDIR)/../Make.defaults
+ 
+ all:
+ 
+diff --git a/lib/Makefile b/lib/Makefile
+index 4a7619aaacf..6dca2cf1398 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -37,12 +37,12 @@
+ SRCDIR = .
+ 
+ VPATH = $(SRCDIR)
++TOPDIR = $(SRCDIR)/..
+ 
+ include $(SRCDIR)/../Make.defaults
+ 
+ TOPDIR = $(SRCDIR)/..
+ 
+-CDIR = $(TOPDIR)/..
+ FILES = boxdraw smbios console crc data debug dpath \
+         entry error event exit guid hand hw init lock \
+         misc print sread str cmdline \

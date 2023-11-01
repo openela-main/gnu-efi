@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Mon, 11 Jun 2018 13:41:05 -0400
+Subject: [PATCH] Fix a minor coverity complaint in some apps
+
+Coverity added a new kind of check, and it noticed some minor errors
+with some types in two of the apps here, both of the same form:
+
+1. gnu-efi-3.0.6/apps/lfbgrid.c:91: overflow_before_widen: Potentially
+overflowing expression "info->VerticalResolution *
+info->PixelsPerScanLine" with type "unsigned int" (32 bits, unsigned) is
+evaluated using 32-bit arithmetic, and then used in a context that
+expects an expression of type "UINTN" (64 bits, unsigned).
+
+1. gnu-efi-3.0.6/apps/bltgrid.c:67: overflow_before_widen: Potentially
+overflowing expression "info->VerticalResolution *
+info->HorizontalResolution" with type "unsigned int" (32 bits, unsigned)
+is evaluated using 32-bit arithmetic, and then used in a context that
+expects an expression of type "UINTN" (64 bits, unsigned).
+
+This resolves both issues.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ apps/bltgrid.c | 3 ++-
+ apps/lfbgrid.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/apps/bltgrid.c b/apps/bltgrid.c
+index 2adde6a3211..a0eb8c779e4 100644
+--- a/apps/bltgrid.c
++++ b/apps/bltgrid.c
+@@ -64,7 +64,8 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
+ 		if (CompareMem(info, gop->Mode->Info, sizeof (*info)))
+ 			continue;
+ 
+-		NumPixels = info->VerticalResolution * info->HorizontalResolution;
++		NumPixels = (UINTN)info->VerticalResolution
++                            * (UINTN)info->HorizontalResolution;
+ 		BufferSize = NumPixels * sizeof(UINT32);
+ 
+ 		PixelBuffer = AllocatePool(BufferSize);
+diff --git a/apps/lfbgrid.c b/apps/lfbgrid.c
+index 53a255afbb9..ac50f4eafa9 100644
+--- a/apps/lfbgrid.c
++++ b/apps/lfbgrid.c
+@@ -88,7 +88,8 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
+ 		if (CompareMem(info, gop->Mode->Info, sizeof (*info)))
+ 			continue;
+ 
+-		NumPixels = info->VerticalResolution * info->PixelsPerScanLine;
++		NumPixels = (UINTN)info->VerticalResolution
++                            * (UINTN)info->PixelsPerScanLine;
+ 		BufferSize = NumPixels * sizeof(UINT32);
+ 		if (BufferSize == gop->Mode->FrameBufferSize) {
+ 			CopySize = BufferSize;

@@ -1,0 +1,134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Fri, 25 Oct 2019 15:41:16 -0400
+Subject: [PATCH] Install our libraries in $(LIBDIR)/gnuefi/$(ARCH)
+
+This makes it possible to install all the output on the same machine for
+cross-builds.  This also adds "install_compat", which uses the previous
+paths.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults   |  1 +
+ Makefile        |  4 ++--
+ apps/Makefile   |  2 +-
+ gnuefi/Makefile | 22 ++++++++++++++++++----
+ inc/Makefile    |  3 +++
+ lib/Makefile    |  5 ++++-
+ 6 files changed, 29 insertions(+), 8 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 157559d20ee..7231e9bced2 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -72,6 +72,7 @@ LD           := $(prefix)$(CROSS_COMPILE)ld
+ AR           := $(prefix)$(CROSS_COMPILE)ar
+ RANLIB       := $(prefix)$(CROSS_COMPILE)ranlib
+ OBJCOPY      := $(prefix)$(CROSS_COMPILE)objcopy
++SYMLINK      := ln -vfs
+ 
+ 
+ # Host/target identification
+diff --git a/Makefile b/Makefile
+index eecce6d9736..962ac72b664 100644
+--- a/Makefile
++++ b/Makefile
+@@ -87,10 +87,10 @@ clean:
+ 		fi; \
+ 	done
+ 
+-install:
++install install_compat:
+ 	@set -e ; for d in $(SUBDIRS); do \
+ 		mkdir -p $(OBJDIR)/$$d; \
+-		$(MAKE) -C $(OBJDIR)/$$d -f $(SRCDIR)/$$d/Makefile SRCDIR=$(SRCDIR)/$$d install; done
++		$(MAKE) -C $(OBJDIR)/$$d -f $(SRCDIR)/$$d/Makefile SRCDIR=$(SRCDIR)/$$d $@ ; done
+ 
+ .PHONY:	$(SUBDIRS) clean depend
+ 
+diff --git a/apps/Makefile b/apps/Makefile
+index 3b96f153a23..8ab83d58a3c 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -91,6 +91,6 @@ ctors_test.so : ctors_fns.o ctors_test.o
+ clean:
+ 	@rm -vf $(TARGETS) *~ *.o *.so
+ 
+-.PHONY: install
++.PHONY: install install_compat
+ 
+ include $(SRCDIR)/../Make.rules
+diff --git a/gnuefi/Makefile b/gnuefi/Makefile
+index bea629b0b29..7652669a7cc 100644
+--- a/gnuefi/Makefile
++++ b/gnuefi/Makefile
+@@ -60,16 +60,30 @@ clean:
+ 	@rm -vf $(TARGETS) *~ *.o $(OBJS)
+ 
+ install:
++	mkdir -p $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)
++	$(INSTALL) -m 644 -t $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)/ $(TARGETS)
++ifneq (,$(findstring FreeBSD,$(OS)))
++ ifeq ($(ARCH),x64)
++	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_fbsd_efi.lds $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)
++ else
++	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)
++ endif
++else
++	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)
++endif
++
++install_compat: install
+ 	mkdir -p $(INSTALLROOT)$(LIBDIR)
+-	$(INSTALL) -m 644 $(TARGETS) $(INSTALLROOT)$(LIBDIR)
++	$(SYMLINK) gnuefi/$(ARCH)/libgnuefi.a $(INSTALLROOT)$(LIBDIR)/libgnuefi.a
++	$(SYMLINK) gnuefi/$(ARCH)/crt0-efi-$(ARCH).o $(INSTALLROOT)$(LIBDIR)/crt0-efi-$(BFD_ARCH).o
+ ifneq (,$(findstring FreeBSD,$(OS)))
+  ifeq ($(ARCH),x64)
+-	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_fbsd_efi.lds $(INSTALLROOT)$(LIBDIR)
++	$(SYMLINK) gnuefi/$(ARCH)/elf_$(ARCH)_fbsd_efi.lds $(INSTALLROOT)$(LIBDIR)/elf_$(BFD_ARCH)_fbsd_efi.lds
+  else
+-	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)
++	$(SYMLINK) gnuefi/$(ARCH)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)/elf_$(BFD_ARCH)_efi.lds
+  endif
+ else
+-	$(INSTALL) -m 644 $(SRCDIR)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)
++	$(SYMLINK) gnuefi/$(ARCH)/elf_$(ARCH)_efi.lds $(INSTALLROOT)$(LIBDIR)/elf_$(BFD_ARCH)_efi.lds
+ endif
+ 
+ include $(SRCDIR)/../Make.rules
+diff --git a/inc/Makefile b/inc/Makefile
+index 13022fd6ae1..445d340f0fa 100644
+--- a/inc/Makefile
++++ b/inc/Makefile
+@@ -17,4 +17,7 @@ install:
+ 	$(INSTALL) -m 644 $(SRCDIR)/protocol/*.h $(INSTALLROOT)$(PREFIX)/include/efi/protocol
+ 	$(INSTALL) -m 644 $(SRCDIR)/$(ARCH)/*.h $(INSTALLROOT)$(PREFIX)/include/efi/$(ARCH)
+ 
++install_compat: install
++	@if [ ! -h $(DEST)/$(BFD_ARCH) ]; then $(SYMLINK) $(ARCH) $(INSTALLROOT)$(PREFIX)/include/efi/$(BFD_ARCH) ; fi
++
+ include $(SRCDIR)/../Make.rules
+diff --git a/lib/Makefile b/lib/Makefile
+index 6dca2cf1398..f0d7b9b08e6 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -66,7 +66,7 @@ OBJS  = $(FILES:%=%.o) ctors.o
+ 
+ SUBDIRS = $(ARCHES) runtime
+ 
+-LIBDIRINSTALL = $(INSTALLROOT)$(LIBDIR)
++LIBDIRINSTALL ?= $(INSTALLROOT)$(LIBDIR)/gnuefi/$(ARCH)
+ 
+ all: libsubdirs libefi.a
+ 
+@@ -88,6 +88,9 @@ $(LIBDIRINSTALL)/libefi.a: libefi.a | $(LIBDIRINSTALL)
+ 
+ install: $(LIBDIRINSTALL)/libefi.a
+ 
++install_compat: install
++	$(SYMLINK) gnuefi/$(ARCH)/libefi.a $(INSTALLROOT)$(LIBDIR)/libefi.a
++
+ include $(SRCDIR)/../Make.rules
+ 
+ .PHONY: libsubdirs

@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Tue, 2 Apr 2019 09:47:24 -0400
+Subject: [PATCH] gnuefi/Makefile uses a strange rule to create libgnuefi.a,
+ which only works because of a "make" builtin rule. This breaks make -r, and
+ it is an inefficient way to build, at least for multiple files.
+
+I have made a git tree which includes a patch for this problem,
+and also forces -r by adding it to MAKEFLAGS:
+
+git://git.zytor.com/users/hpa/gnu-efi.git make-r-fixes
+
+Signed-off-by: H. Peter Anvin <hpa@users.sourceforge.net>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ gnuefi/Makefile | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/gnuefi/Makefile b/gnuefi/Makefile
+index 2a61699ac25..10d4e7addd0 100644
+--- a/gnuefi/Makefile
++++ b/gnuefi/Makefile
+@@ -54,7 +54,9 @@ TARGETS	= crt0-efi-$(ARCH).o libgnuefi.a
+ 
+ all:	$(TARGETS)
+ 
+-libgnuefi.a: $(patsubst %,libgnuefi.a(%),$(OBJS))
++libgnuefi.a: $(OBJS)
++	$(AR) $(ARFLAGS) $@ $^
++
+ 
+ clean:
+ 	rm -f $(TARGETS) *~ *.o $(OBJS)
