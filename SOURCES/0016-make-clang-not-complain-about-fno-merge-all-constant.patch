@@ -1,0 +1,32 @@
+From f0bf464a37d740a9539e8356a2e8611da63455df Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:26 -0400
+Subject: [PATCH 16/25] make clang not complain about -fno-merge-all-constants
+
+Make clang not complain about -fno-merge-all-constants
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Make.defaults | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 6d300fb0f24..a457190aa3a 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -170,8 +170,9 @@ CFLAGS  += $(ARCH3264) -g -O2 -Wall -Wextra -Werror \
+ else
+ CFLAGS  += $(ARCH3264) -g -O2 -Wall -Wextra -Werror \
+            -fshort-wchar -fno-strict-aliasing \
+-           -fno-merge-all-constants -ffreestanding -fno-stack-protector \
+-           -fno-stack-check
++	   -ffreestanding -fno-stack-protector -fno-stack-check \
++           -fno-stack-check \
++           $(if $(findstring gcc,$(CC)),-fno-merge-all-constants,)
+ endif
+ 
+ ARFLAGS += -U
+-- 
+2.15.0
+

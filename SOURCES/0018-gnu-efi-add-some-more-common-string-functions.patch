@@ -1,0 +1,345 @@
+From 9485c65f6d28b71ff697849c1c8d47fd077ccd07 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:28 -0400
+Subject: [PATCH 18/25] gnu-efi: add some more common string functions.
+
+This adds bounded string helper functions:
+
+StrnLen()
+StrnCpy()
+StrnCat()
+StpnCpy()
+
+And the unbounded function StpCpy().
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/runtime/rtstr.c | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ lib/str.c           | 53 ++++++++++++++++++++++++++++++
+ inc/efilib.h        | 33 +++++++++++++++++++
+ inc/efirtlib.h      | 38 ++++++++++++++++++++++
+ 4 files changed, 213 insertions(+), 3 deletions(-)
+
+diff --git a/lib/runtime/rtstr.c b/lib/runtime/rtstr.c
+index e283c09582e..80ff4891199 100644
+--- a/lib/runtime/rtstr.c
++++ b/lib/runtime/rtstr.c
+@@ -57,6 +57,61 @@ RtStrCpy (
+     *Dest = 0;
+ }
+ 
++#ifndef __GNUC__
++#pragma RUNTIME_CODE(RtStrnCpy)
++#endif
++VOID
++RUNTIMEFUNCTION
++RtStrnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    )
++// copy strings
++{
++    UINTN Size = RtStrnLen(Src, Len);
++    if (Size != Len)
++	RtSetMem(Dest + Len, '\0', (Len - Size) * sizeof(CHAR16));
++    RtCopyMem(Dest, Src, Size * sizeof(CHAR16));
++}
++
++#ifndef __GNUC__
++#pragma RUNTIME_CODE(RtStrCpy)
++#endif
++CHAR16 *
++RUNTIMEFUNCTION
++RtStpCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src
++    )
++// copy strings
++{
++    while (*Src) {
++        *(Dest++) = *(Src++);
++    }
++    *Dest = 0;
++    return Dest;
++}
++
++#ifndef __GNUC__
++#pragma RUNTIME_CODE(RtStrnCpy)
++#endif
++CHAR16 *
++RUNTIMEFUNCTION
++RtStpnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    )
++// copy strings
++{
++    UINTN Size = RtStrnLen(Src, Len);
++    if (Size != Len)
++	RtSetMem(Dest + Len, '\0', (Len - Size) * sizeof(CHAR16));
++    RtCopyMem(Dest, Src, Size * sizeof(CHAR16));
++    return Dest + Size;
++}
++
+ #ifndef __GNUC__
+ #pragma RUNTIME_CODE(RtStrCat)
+ #endif
+@@ -66,10 +121,24 @@ RtStrCat (
+     IN CHAR16   *Dest,
+     IN CONST CHAR16   *Src
+     )
+-{   
++{
+     RtStrCpy(Dest+StrLen(Dest), Src);
+ }
+ 
++#ifndef __GNUC__
++#pragma RUNTIME_CODE(RtStrCat)
++#endif
++VOID
++RUNTIMEFUNCTION
++RtStrnCat (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN    Len
++    )
++{
++    RtStrnCpy(Dest+StrLen(Dest), Src, Len);
++}
++
+ #ifndef __GNUC__
+ #pragma RUNTIME_CODE(RtStrLen)
+ #endif
+@@ -81,11 +150,28 @@ RtStrLen (
+ // string length
+ {
+     UINTN        len;
+-    
++
+     for (len=0; *s1; s1+=1, len+=1) ;
+     return len;
+ }
+ 
++#ifndef __GNUC__
++#pragma RUNTIME_CODE(RtStrnLen)
++#endif
++UINTN
++RUNTIMEFUNCTION
++RtStrnLen (
++    IN CONST CHAR16   *s1,
++    IN UINTN           Len
++    )
++// copy strings
++{
++    UINTN i;
++    for (i = 0; *s1 && i < Len; i++)
++	    s1++;
++    return i;
++}
++
+ #ifndef __GNUC__
+ #pragma RUNTIME_CODE(RtStrSize)
+ #endif
+@@ -97,7 +183,7 @@ RtStrSize (
+ // string size
+ {
+     UINTN        len;
+-    
++
+     for (len=0; *s1; s1+=1, len+=1) ;
+     return (len + 1) * sizeof(CHAR16);
+ }
+diff --git a/lib/str.c b/lib/str.c
+index cf1495c1fc8..9a89f30ee55 100644
+--- a/lib/str.c
++++ b/lib/str.c
+@@ -113,6 +113,38 @@ StrCpy (
+     RtStrCpy (Dest, Src);
+ }
+ 
++VOID
++StrnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    )
++// copy strings
++{
++    RtStrnCpy (Dest, Src, Len);
++}
++
++CHAR16 *
++StpCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src
++    )
++// copy strings
++{
++    return RtStpCpy (Dest, Src);
++}
++
++CHAR16 *
++StpnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    )
++// copy strings
++{
++    return RtStpnCpy (Dest, Src, Len);
++}
++
+ VOID
+ StrCat (
+     IN CHAR16   *Dest,
+@@ -122,6 +154,27 @@ StrCat (
+     RtStrCat(Dest, Src);
+ }
+ 
++VOID
++StrnCat (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    )
++{
++    RtStrnCat(Dest, Src, Len);
++}
++
++
++UINTN
++StrnLen (
++    IN CONST CHAR16   *s1,
++    IN UINTN           Len
++    )
++// string length
++{
++    return RtStrnLen(s1, Len);
++}
++
+ UINTN
+ StrLen (
+     IN CONST CHAR16   *s1
+diff --git a/inc/efilib.h b/inc/efilib.h
+index 22da65bbc27..8a507aff7cd 100644
+--- a/inc/efilib.h
++++ b/inc/efilib.h
+@@ -313,17 +313,50 @@ StrCpy (
+     IN CONST CHAR16    *Src
+     );
+ 
++VOID
++StrnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src,
++    IN UINTN     Len
++    );
++
++CHAR16 *
++StpCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src
++    );
++
++CHAR16 *
++StpnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src,
++    IN UINTN     Len
++    );
++
+ VOID
+ StrCat (
+     IN CHAR16   *Dest,
+     IN CONST CHAR16   *Src
+     );
+ 
++VOID
++StrnCat (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    );
++
+ UINTN
+ StrLen (
+     IN CONST CHAR16   *s1
+     );
+ 
++UINTN
++StrnLen (
++    IN CONST CHAR16   *s1,
++    IN UINTN           Len
++    );
++
+ UINTN
+ StrSize (
+     IN CONST CHAR16   *s1
+diff --git a/inc/efirtlib.h b/inc/efirtlib.h
+index c073ead97a7..49d0b4d3ae0 100644
+--- a/inc/efirtlib.h
++++ b/inc/efirtlib.h
+@@ -69,6 +69,29 @@ RtStrCpy (
+     IN CONST CHAR16    *Src
+     );
+ 
++VOID
++RUNTIMEFUNCTION
++RtStrnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src,
++    IN UINTN     Len
++    );
++
++CHAR16 *
++RUNTIMEFUNCTION
++RtStpCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src
++    );
++
++CHAR16 *
++RUNTIMEFUNCTION
++RtStpnCpy (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16    *Src,
++    IN UINTN     Len
++    );
++
+ VOID
+ RUNTIMEFUNCTION
+ RtStrCat (
+@@ -76,12 +99,27 @@ RtStrCat (
+     IN CONST CHAR16   *Src
+     );
+ 
++VOID
++RUNTIMEFUNCTION
++RtStrnCat (
++    IN CHAR16   *Dest,
++    IN CONST CHAR16   *Src,
++    IN UINTN     Len
++    );
++
+ UINTN
+ RUNTIMEFUNCTION
+ RtStrLen (
+     IN CONST CHAR16   *s1
+     );
+ 
++UINTN
++RUNTIMEFUNCTION
++RtStrnLen (
++    IN CONST CHAR16   *s1,
++    IN UINTN           Len
++    );
++
+ UINTN
+ RUNTIMEFUNCTION
+ RtStrSize (
+-- 
+2.15.0
+

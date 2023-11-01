@@ -1,0 +1,31 @@
+From 15bcddc996694c904b3848c83031da5cd3a4719e Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Mon, 6 Nov 2017 09:06:31 -0500
+Subject: [PATCH 03/25] Stripped diff for makefile
+
+This patch allows one to run make outside the source tree
+with make -f <makefile>.
+
+Signed-off-by: wolfra <wolfra@users.sf.net>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 646de6f7044..37592bd6930 100644
+--- a/Makefile
++++ b/Makefile
+@@ -36,7 +36,8 @@
+ 
+ VERSION = 3.0.6
+ 
+-SRCDIR = $(shell pwd)
++MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
++SRCDIR = $(dir $(MKFILE_PATH))
+ 
+ VPATH = $(SRCDIR)
+ 
+-- 
+2.15.0
+

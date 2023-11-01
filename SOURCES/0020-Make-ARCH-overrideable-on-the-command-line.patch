@@ -1,0 +1,31 @@
+From 2c624c22fe873099d398e86b9f09cffcae9f0af8 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:30 -0400
+Subject: [PATCH 20/25] Make ARCH overrideable on the command line
+
+Make ARCH overrideable on the command line.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Make.defaults | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index a457190aa3a..4aa57ac5f7c 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -62,8 +62,8 @@ OBJCOPY      := $(prefix)$(CROSS_COMPILE)objcopy
+ 
+ # Host/target identification
+ OS           := $(shell uname -s)
+-HOSTARCH     := $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
+-ARCH         := $(HOSTARCH)
++HOSTARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
++ARCH         ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv7.*,arm,' )
+ 
+ # Get ARCH from the compiler if cross compiling 
+ ifneq ($(CROSS_COMPILE),)
+-- 
+2.15.0
+

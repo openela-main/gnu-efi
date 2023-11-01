@@ -1,0 +1,38 @@
+From d039cd620b8a270d9b231691c9b31d6824f18c08 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Wed, 10 Jan 2018 10:28:36 -0500
+Subject: [PATCH 08/25] Currently we have DivU64x32 on ia32, but it tries to
+ call __umoddi3 and __udivdi3 from libgcc, which we don't have. This fixes it
+ to use our implementation in that case.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/ia32/math.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/ia32/math.c b/lib/ia32/math.c
+index 81f51bf45e4..fce7a8d4875 100644
+--- a/lib/ia32/math.c
++++ b/lib/ia32/math.c
+@@ -140,7 +140,7 @@ DivU64x32 (
+ // divide 64bit by 32bit and get a 64bit result
+ // N.B. only works for 31bit divisors!!
+ {
+-#if defined(__GNUC__) && !defined(__MINGW32__)
++#if 0 && defined(__GNUC__) && !defined(__MINGW32__)
+     if (Remainder)
+         *Remainder = Dividend % Divisor;
+     return Dividend / Divisor;
+@@ -157,7 +157,7 @@ DivU64x32 (
+ 
+     Rem = 0;
+     for (bit=0; bit < 64; bit++) {
+-#ifdef __MINGW32__
++#if defined(__GNUC__) || defined(__MINGW32__)
+         asm (
+             "shll	$1, %0\n\t"
+             "rcll	$1, 4%0\n\t"
+-- 
+2.15.0
+

@@ -1,0 +1,50 @@
+From 28b487d1ae66c7311e13c07c802276ea26f026e9 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:25 -0400
+Subject: [PATCH 15/25] Fix typedef of EFI_PXE_BASE_CODE
+
+Commit 751cbce3 fixed up a bunch of types to better match the edk2
+definitions and the names in the UEFI Spec, but while doing so
+inadvertantly defined things thusly:
+
+  INTERFACE_DECL(_EFI_PXE_BASE_CODE_PROTOCOL);
+  ...
+  typedef struct _EFI_PXE_BASE_CODE_PROTOCOL {
+  ...
+  } EFI_PXE_BASE_CODE_PROTOCOL;
+  ...
+  typedef struct _EFI_PXE_BASE_CODE_PROTOCOL _EFI_PXE_BASE_CODE;
+  typedef struct EFI_PXE_BASE_CODE_PROTOCOL EFI_PXE_BASE_CODE;
+
+Because EFI_BASE_CODE_PROTOCOL is declared with a typedef, and is
+therefore in the type namespace rather than the struct namespace, this
+results in EFI_PXE_BASE_CODE being a forward declaration of an
+incomplete type.  The net result is that code which dereferences any
+field in the struct, even with the correct names, will not correctly
+build.
+
+This patch changes both _EFI_PXE_BASE_CODE and EFI_PXE_BASE_CODE
+typedefs to inherit from struct _EFI_PXE_BASE_CODE_PROTOCOL.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ inc/efipxebc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/inc/efipxebc.h b/inc/efipxebc.h
+index 035a853a7ef..3760c7cbb78 100644
+--- a/inc/efipxebc.h
++++ b/inc/efipxebc.h
+@@ -419,7 +419,7 @@ typedef struct _EFI_PXE_BASE_CODE_PROTOCOL {
+ // Use 'EFI_PXE_BASE_CODE_PROTOCOL_GUID' instead.
+ 
+ typedef struct _EFI_PXE_BASE_CODE_PROTOCOL _EFI_PXE_BASE_CODE;
+-typedef EFI_PXE_BASE_CODE_PROTOCOL EFI_PXE_BASE_CODE;
++typedef struct _EFI_PXE_BASE_CODE_PROTOCOL EFI_PXE_BASE_CODE;
+ 
+ //
+ // Call Back Definitions
+-- 
+2.15.0
+

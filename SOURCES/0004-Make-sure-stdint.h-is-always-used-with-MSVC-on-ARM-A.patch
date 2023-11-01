@@ -1,0 +1,94 @@
+From 39ce220cb6fde14bedf2ef61695f3d20726e41ef Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Mon, 6 Nov 2017 09:26:05 -0500
+Subject: [PATCH 04/25] Make sure stdint.h is always used with MSVC on
+ ARM/ARM64, since all the versions of Visual Studio that support ARM or ARM64
+ have that header. Without this, uint64_t would be defined to unsigned long,
+ which is 32-bits in the Microsoft world.
+
+Also fix aarch64/initplat.c so that memset/memcpy only apply
+to gcc. Otherwise MSVC throws an error for __SIZE_TYPE__.
+
+Updating this patch to v2, since it turns out MSVC will also emit
+memset and memcpy intrinsics that we can use an implementation for.
+This is true for both ARM and ARM64.
+To make this work, I'm defining __SIZE_TYPE__ to UINTN if not
+already defined.
+
+Signed-off-by: Pete Batard <pete@akeo.ie>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/aarch64/initplat.c | 4 ++++
+ lib/arm/initplat.c     | 6 +++++-
+ inc/aarch64/efibind.h  | 2 +-
+ inc/arm/efibind.h      | 2 +-
+ 4 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/lib/aarch64/initplat.c b/lib/aarch64/initplat.c
+index 4b118656d7c..25207f42c8f 100644
+--- a/lib/aarch64/initplat.c
++++ b/lib/aarch64/initplat.c
+@@ -25,6 +25,10 @@ InitializeLibPlatform (
+ {
+ }
+ 
++#ifndef __SIZE_TYPE__
++#define __SIZE_TYPE__ UINTN
++#endif
++
+ /*
+  * Calls to these functions may be emitted implicitly by GCC even when
+  * -ffreestanding is in effect.
+diff --git a/lib/arm/initplat.c b/lib/arm/initplat.c
+index 09f06a9c871..c77d26d9045 100644
+--- a/lib/arm/initplat.c
++++ b/lib/arm/initplat.c
+@@ -25,7 +25,10 @@ InitializeLibPlatform (
+ {
+ }
+ 
+-#ifdef __GNUC__
++#ifndef __SIZE_TYPE__
++#define __SIZE_TYPE__ UINTN
++#endif
++
+ /*
+  * Calls to these functions may be emitted implicitly by GCC even when
+  * -ffreestanding is in effect.
+@@ -51,6 +54,7 @@ void *memcpy(void *dest, const void *src, __SIZE_TYPE__ n)
+     return dest;
+ }
+ 
++#ifdef __GNUC__
+ void __div0(void)
+ {
+ 	// TODO handle divide by zero fault
+diff --git a/inc/aarch64/efibind.h b/inc/aarch64/efibind.h
+index ef7148d5312..182a2109062 100644
+--- a/inc/aarch64/efibind.h
++++ b/inc/aarch64/efibind.h
+@@ -15,7 +15,7 @@
+  * either version 2 of the License, or (at your option) any later version.
+  */
+ 
+-#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L )
++#if !defined(_MSC_VER) && (!defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L ))
+ 
+ // ANSI C 1999/2000 stdint.h integer width declarations
+ 
+diff --git a/inc/arm/efibind.h b/inc/arm/efibind.h
+index 06f6ea1aeb8..40a5a9cd428 100644
+--- a/inc/arm/efibind.h
++++ b/inc/arm/efibind.h
+@@ -15,7 +15,7 @@
+  * either version 2 of the License, or (at your option) any later version.
+  */
+ 
+-#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L )
++#if !defined(_MSC_VER) && (!defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L ))
+ 
+ // ANSI C 1999/2000 stdint.h integer width declarations
+ 
+-- 
+2.15.0
+

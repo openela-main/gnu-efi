@@ -1,0 +1,29 @@
+From be57aadba6092027d21c04d4ededb2e83abe9016 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:32 -0400
+Subject: [PATCH 22/25] Nerf -Werror=pragma away
+
+Nerf -Werror=-pragma away
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Make.defaults | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Make.defaults b/Make.defaults
+index 4aa57ac5f7c..ed4b60c2423 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -87,6 +87,8 @@ OBJDIR       := $(TOPDIR)/$(ARCH)
+ # Arch-specific compilation flags
+ CPPFLAGS += -DCONFIG_$(ARCH)
+ 
++CFLAGS += -Wno-error=pragmas
++
+ ifeq ($(ARCH),ia64)
+   CFLAGS += -mfixed-range=f32-f127
+ endif
+-- 
+2.15.0
+
