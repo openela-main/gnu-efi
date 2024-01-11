@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Soop <sebastian_osorio@outlook.cl>
+Date: Wed, 16 Dec 2015 22:33:33 -0300
+Subject: [PATCH] Make apps link against the local gnuefi and crt objects
+
+---
+ apps/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/apps/Makefile b/apps/Makefile
+index 4e1b69a38c8..310c6fdb5fc 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -45,14 +45,14 @@ TOPDIR = $(SRCDIR)/..
+ CDIR=$(TOPDIR)/..
+ LINUX_HEADERS	= /usr/src/sys/build
+ CPPFLAGS	+= -D__KERNEL__ -I$(LINUX_HEADERS)/include
+-CRTOBJS		= ../gnuefi/crt0-efi-$(ARCH).o
++CRTOBJS		= $(TOPDIR)/$(ARCH)/gnuefi/crt0-efi-$(ARCH).o
+ 
+ LDSCRIPT	= $(TOPDIR)/gnuefi/elf_$(ARCH)_efi.lds
+ ifneq (,$(findstring FreeBSD,$(OS)))
+ LDSCRIPT	= $(TOPDIR)/gnuefi/elf_$(ARCH)_fbsd_efi.lds
+ endif
+ 
+-LDFLAGS		+= -shared -Bsymbolic -L../lib -L../gnuefi $(CRTOBJS)
++LDFLAGS		+= -shared -Bsymbolic -L$(TOPDIR)/$(ARCH)/lib -L$(TOPDIR)/$(ARCH)/gnuefi $(CRTOBJS)
+ 
+ LOADLIBES	+= -lefi -lgnuefi
+ LOADLIBES	+= $(LIBGCC)

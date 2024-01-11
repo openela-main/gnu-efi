@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Mon, 30 Sep 2019 14:29:45 -0400
+Subject: [PATCH] Make our dummy .reloc sections not depend on section order.
+
+Currently on x64 we manually build a dummy .reloc table entry by using a
+symbol in .text and subtracting its address from another symbol that's
+inside the .reloc section.  On ia32 we just use its location.  In either
+case, if the linker puts either section in a location we're not
+expecting, the .reloc table winds up having invalid values, and the PE
+loader will fail to load the binary.
+
+This changes it to be two symbols that are both in .text, making the
+result unrelated to the section order or location.
+
+It's not clear to me that these .reloc entries are actually necessary at
+all, but I'm going to leave them in place for now, in case they are.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ gnuefi/crt0-efi-ia32.S | 17 +++++++++--------
+ gnuefi/crt0-efi-x64.S  | 16 ++++++++--------
+ 2 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/gnuefi/crt0-efi-ia32.S b/gnuefi/crt0-efi-ia32.S
+index 8e8e372f551..031a592ab35 100644
+--- a/gnuefi/crt0-efi-ia32.S
++++ b/gnuefi/crt0-efi-ia32.S
+@@ -64,13 +64,14 @@ _start:
+ .exit:	leave
+ 	ret
+  
+- 	// hand-craft a dummy .reloc section so EFI knows it's a relocatable executable:
+- 
+- 	.data
+-dummy:	.long	0
++	// hand-craft a dummy .reloc section so EFI knows it's a relocatable executable:
++	.data
++.dummy0:
++.dummy1:
++	.long	0
+ 
+ #define IMAGE_REL_ABSOLUTE	0
+- 	.section .reloc
+- 	.long	dummy					// Page RVA
+- 	.long	10					// Block Size (2*4+2)
+- 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
++	.section .reloc, "a"
++	.long	.dummy1-.dummy0				// Page RVA
++	.long	10					// Block Size (2*4+2)
++	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+diff --git a/gnuefi/crt0-efi-x64.S b/gnuefi/crt0-efi-x64.S
+index 3fe361b7ffd..5c86cde12e8 100644
+--- a/gnuefi/crt0-efi-x64.S
++++ b/gnuefi/crt0-efi-x64.S
+@@ -62,15 +62,15 @@ _start:
+ .exit:	
+   	ret
+ 
+- 	// hand-craft a dummy .reloc section so EFI knows it's a relocatable executable:
+- 
+- 	.data
+-dummy:	.long	0
++	// hand-craft a dummy .reloc section so EFI knows it's a relocatable executable:
++	.data
++.dummy0:
++.dummy1:
++	.long	0
+ 
+ #define IMAGE_REL_ABSOLUTE	0
+- 	.section .reloc, "a"
+-label1:
+-	.long	dummy-label1				// Page RVA
+- 	.long	10					// Block Size (2*4+2)
++	.section .reloc, "a"
++	.long	.dummy1-.dummy0				// Page RVA
++	.long	10					// Block Size (2*4+2)
+ 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 

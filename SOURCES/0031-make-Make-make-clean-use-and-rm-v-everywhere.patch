@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Thu, 14 Nov 2019 09:55:07 -0500
+Subject: [PATCH] make: Make "make clean" use @ and rm -v everywhere
+
+This makes our "make clean" commands show what they've /removed/, rather
+than what the shell code that will be run is.
+
+It also consolidates our list of arches into an ARCHES variable defined
+in Make.defaults
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults   | 2 ++
+ Makefile        | 2 +-
+ apps/Makefile   | 2 +-
+ gnuefi/Makefile | 2 +-
+ lib/Makefile    | 4 ++--
+ 5 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 585f3a00aa5..b8a3e07b681 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -36,6 +36,8 @@
+ 
+ TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+ 
++ARCHES=aa64 arm ia32 ia64 mips64el x64
++
+ #
+ # Variables below overridable from command-line:
+ #   make VARNAME=value ...
+diff --git a/Makefile b/Makefile
+index a461a5c3483..eecce6d9736 100644
+--- a/Makefile
++++ b/Makefile
+@@ -80,7 +80,7 @@ $(SUBDIRS):
+ 	$(MAKE) -C $(OBJDIR)/$@ -f $(SRCDIR)/$@/Makefile SRCDIR=$(SRCDIR)/$@ ARCH=$(ARCH)
+ 
+ clean:
+-	rm -f *~
++	@rm -vrf *~ $(foreach x,$(ARCHES),$(x)/)
+ 	@set -e ; for d in $(SUBDIRS); do \
+ 		if [ -d $(OBJDIR)/$$d ]; then \
+ 			$(MAKE) -C $(OBJDIR)/$$d -f $(SRCDIR)/$$d/Makefile SRCDIR=$(SRCDIR)/$$d clean; \
+diff --git a/apps/Makefile b/apps/Makefile
+index 28088370da7..04cf251cb2f 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -91,7 +91,7 @@ all:	$(TARGETS)
+ ctors_test.so : ctors_fns.o ctors_test.o
+ 
+ clean:
+-	rm -f $(TARGETS) *~ *.o *.so
++	@rm -vf $(TARGETS) *~ *.o *.so
+ 
+ .PHONY: install
+ 
+diff --git a/gnuefi/Makefile b/gnuefi/Makefile
+index df67ee83911..09b40cc421e 100644
+--- a/gnuefi/Makefile
++++ b/gnuefi/Makefile
+@@ -59,7 +59,7 @@ libgnuefi.a: $(OBJS)
+ 
+ 
+ clean:
+-	rm -f $(TARGETS) *~ *.o $(OBJS)
++	@rm -vf $(TARGETS) *~ *.o $(OBJS)
+ 
+ install:
+ 	mkdir -p $(INSTALLROOT)$(LIBDIR)
+diff --git a/lib/Makefile b/lib/Makefile
+index 6fd472ad1ac..4a7619aaacf 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -64,7 +64,7 @@ endif
+ 
+ OBJS  = $(FILES:%=%.o) ctors.o
+ 
+-SUBDIRS = ia32 x64 ia64 aa64 arm mips64el runtime
++SUBDIRS = $(ARCHES) runtime
+ 
+ LIBDIRINSTALL = $(INSTALLROOT)$(LIBDIR)
+ 
+@@ -78,7 +78,7 @@ libefi.a: $(OBJS)
+ 	$(AR) $(ARFLAGS) $@ $^
+ 
+ clean:
+-	rm -f libefi.a *~ $(OBJS) */*.o
++	@rm -vf libefi.a *~ $(OBJS) */*.o
+ 
+ $(LIBDIRINSTALL):
+ 	mkdir -p $@

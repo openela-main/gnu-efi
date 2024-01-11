@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Fri, 25 Oct 2019 15:37:17 -0400
+Subject: [PATCH] Get rid of unused make-like files from yore.
+
+These files are all edk2-like makefile snippets, and we don't use any of
+them for anything.  They've also got DOS line endings and things like
+that.
+
+This patch just gets rid of them.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ inc/inc.mak           | Bin 727 -> 0 bytes
+ inc/make.inf          | Bin 398 -> 0 bytes
+ inc/makefile.hdr      | Bin 1501 -> 0 bytes
+ inc/protocol/make.inf | Bin 113 -> 0 bytes
+ 4 files changed, 0 insertions(+), 0 deletions(-)
+ delete mode 100644 inc/inc.mak
+ delete mode 100644 inc/make.inf
+ delete mode 100644 inc/makefile.hdr
+ delete mode 100644 inc/protocol/make.inf
+
+diff --git a/inc/inc.mak b/inc/inc.mak
+deleted file mode 100644
+index 992996becdfebbd03d3dfb9b4c64fd543ed3c5ff..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 727
+zcmajdy$S*`3<vPN(0AzIpo?$dqz*13xC+uw4ai;T^$s836KvWcIXk80$G>fe6jGed
+z`}^T|xvHI7t;=SkaNVT9`d9b>+h=n~6CE2x69b*YB%0X1L!oHmycr(_aU>L=*pw-v
+zp;LTHD43KmRKbuJm}=;YqD~nNLo7gF3`0`?H|6b12G^HKFMm2V3E!EZ-vYI_GodDG
+SbPXXzwu@rOPN#Ver1$`XL5I}<
+
+diff --git a/inc/make.inf b/inc/make.inf
+deleted file mode 100644
+index f173196f08cc36175a53b58d17e24d4bc6fbab1f..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 398
+zcmbV|%?biB4216seFtIh9#ni8@z9@C14~=dR(yQBg~}9fh92@U37O8SmbE{%+;Xg9
+zDc{v{Xhoin&u^;}l8pg0N2Wd|_7lAlAc+9^46v~QN?Hn{Wsb-aC;3grf}D%ff~ErD
+pI5$h<m(>9jyF&|u_4)J@h~ePIkwl|wNj2+f)BQr<y<Yy>{Qx*pX`BE6
+
+diff --git a/inc/makefile.hdr b/inc/makefile.hdr
+deleted file mode 100644
+index 46ef3876908366b17c77bc3275afcc554fced58b..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 1501
+zcmbu8QES355XavO{SLS4L;Emco5+0dVYGFGNfp~iLDKeW!)j7u9s2E;sN2gxycrru
+zx!>JC|0L%+J=f_$R*M~&kHeN1wU7uKl&E=!B~+q8c!X#U$vlHNVwue_<NX)OkCxx^
+zPaNO@|AZ^8wx+O&3RzvEp=ys>Z0ZjDB7mpy_!WT34jTxSZk3T1N*dO6T!$s$I*J!5
+zOrY=o`~<La9lMRbpGF^RmZaI+Y_^WrGFS;&H2V@)SP44^_3bQgNqC_orFx0^enU&B
+zX!uu4;ZbV}UhOD!BXSDfa@~>mLI_1l(26E-z`URc?7EU`()CIt?MR$1_r_PhFDZ0a
+zoN3!{4{Qov-(M`}VVtJ(W#GYN0v_Wp&)%KgXlvM(%!Mp(KH5`Ki!|Pdm<QN4{Bpu4
+dV{sC(sa;($IU3$?ay0yhNs~k}c^0{1@*COZxEKHc
+
+diff --git a/inc/protocol/make.inf b/inc/protocol/make.inf
+deleted file mode 100644
+index f3bb9076c6b267dda5429e7515c2243dad79415b..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 113
+zcmY%9<x&PCUasik{L-T2)Z$oPE(IV+P0K7xEYi#1<>JgqO;1d&Ov=wM0dvFB6P<Gs
+hi;F=Vkjl)wlAQd+6c86^N@k+55yB*}fSCzG004;AA3Fd5
+

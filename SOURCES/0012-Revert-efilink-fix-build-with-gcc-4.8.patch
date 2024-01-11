@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Mon, 28 Oct 2019 07:45:38 -0400
+Subject: [PATCH] Revert "efilink: fix build with gcc 4.8"
+
+Breaks gcc builds with '-nostdinc' flag.
+
+The fix in 1a53d8f88a452847b25f9689f9a08dbcf82c86e4
+(Fix for problem with undeclared intptr_t type), which is also merged
+fixes the same problem, without causing breakage.
+
+This reverts commit 6335e5c697c57d8b5854b8202de3733bcb151ca6.
+---
+ inc/efilink.h | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/inc/efilink.h b/inc/efilink.h
+index b69a6fd5cf5..cc5aa2dc57b 100644
+--- a/inc/efilink.h
++++ b/inc/efilink.h
+@@ -1,10 +1,6 @@
+ #ifndef _EFI_LINK_H
+ #define _EFI_LINK_H
+ 
+-#if defined(__GNUC__)
+-#include <stdint.h>
+-#endif
+-
+ /*++
+ 
+ Copyright (c) 1998  Intel Corporation

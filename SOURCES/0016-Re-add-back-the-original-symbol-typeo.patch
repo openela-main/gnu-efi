@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Thu, 16 Jan 2020 14:35:56 -0500
+Subject: [PATCH] Re-add back the original symbol, typeo.
+
+Fix breaking code by restoring original typeo in efierr.h
+EFI_WARN_UNKOWN_GLYPH definition.
+
+Fixes: commit 5d0d538c2574dfe32e87e87ff977f2830ae2990c
+
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ inc/efierr.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/inc/efierr.h b/inc/efierr.h
+index d351c1ca225..5a66e1a0676 100644
+--- a/inc/efierr.h
++++ b/inc/efierr.h
+@@ -58,6 +58,7 @@ Revision History
+ #define EFI_INVALID_LANGUAGE            EFIERR(32)
+ #define EFI_COMPROMISED_DATA            EFIERR(33)
+ 
++#define EFI_WARN_UNKOWN_GLYPH           EFIWARN(1)
+ #define EFI_WARN_UNKNOWN_GLYPH          EFIWARN(1)
+ #define EFI_WARN_DELETE_FAILURE         EFIWARN(2)
+ #define EFI_WARN_WRITE_FAILURE          EFIWARN(3)

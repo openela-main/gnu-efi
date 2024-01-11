@@ -1,0 +1,185 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Wed, 9 Jan 2019 07:03:46 -0500
+Subject: [PATCH] * Fixed typeo lib/error.c EFI_WARN_UNKNOWN_GLYPH definition.
+ On couple of locations in runtime string library (rtstr.c) there are calls to
+ non-runtime variant of StrLen function. * Another issue is with formatting
+ 1394 paths. The F1394_DEVICE_PATH::Guid is formatted as %g, but 1394 GUID is
+ 8 byte integer, not EFI_GUID and therefore should be formatted as e.g. %016lx
+ (as edk2 does). * Beyond what's mentioned above, changed the format of the
+ harddrive path, so it's in line with edk2 format and spec (2.7 errata A,
+ chapter 10.6.1.6, table 102).
+
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+Signed-off-by: manison <manison@users.sf.net>
+---
+ inc/efidevp.h       | 10 +++++-----
+ lib/dpath.c         | 26 ++++++++++++++------------
+ lib/error.c         |  2 +-
+ lib/runtime/rtstr.c | 12 ++++++------
+ 4 files changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/inc/efidevp.h b/inc/efidevp.h
+index ffaf6e28eea..fa1a235eaba 100644
+--- a/inc/efidevp.h
++++ b/inc/efidevp.h
+@@ -325,11 +325,11 @@ typedef struct _VLAN_DEVICE_PATH {
+ #define MSG_INFINIBAND_DP               0x09
+ typedef struct _INFINIBAND_DEVICE_PATH {
+         EFI_DEVICE_PATH_PROTOCOL        Header;
+-        UINT32                          ResourceFlags ;
+-        UINT64                          PortGid ;
+-        UINT64                          ServiceId ;
+-        UINT64                          TargetPortId ;
+-        UINT64                          DeviceId ;
++        UINT32                          ResourceFlags;
++        UINT8                           PortGid[16];
++        UINT64                          ServiceId;
++        UINT64                          TargetPortId;
++        UINT64                          DeviceId;
+ } INFINIBAND_DEVICE_PATH;
+ 
+ #define MSG_UART_DP                     0x0e
+diff --git a/lib/dpath.c b/lib/dpath.c
+index 7486252eecf..5e079d687bd 100644
+--- a/lib/dpath.c
++++ b/lib/dpath.c
+@@ -659,7 +659,8 @@ _DevPath1394 (
+     F1394_DEVICE_PATH       *F1394;
+ 
+     F1394 = DevPath;
+-    CatPrint(Str, L"1394(%g)", &F1394->Guid);
++    // Guid has format of IEEE-EUI64
++    CatPrint(Str, L"I1394(%016lx)", F1394->Guid);
+ }
+ 
+ 
+@@ -863,9 +864,9 @@ _DevPathInfiniBand (
+     INFINIBAND_DEVICE_PATH  *InfiniBand;
+ 
+     InfiniBand = DevPath;
+-    CatPrint( Str , L"Infiniband(0x%x,%g,0x%lx,0x%lx,0x%lx)" ,
+-        InfiniBand-> ResourceFlags , InfiniBand-> PortGid , InfiniBand-> ServiceId ,
+-        InfiniBand-> TargetPortId , InfiniBand-> DeviceId ) ;
++    CatPrint(Str, L"Infiniband(0x%x,%g,0x%lx,0x%lx,0x%lx)",
++        InfiniBand->ResourceFlags, InfiniBand->PortGid, InfiniBand->ServiceId,
++        InfiniBand->TargetPortId, InfiniBand->DeviceId);
+ }
+ 
+ static VOID
+@@ -889,17 +890,19 @@ _DevPathUart (
+     }
+ 
+     if (Uart->BaudRate == 0) {
+-        CatPrint(Str, L"Uart(DEFAULT %c",Uart->BaudRate,Parity);
++        CatPrint(Str, L"Uart(DEFAULT,");
+     } else {
+-        CatPrint(Str, L"Uart(%d %c",Uart->BaudRate,Parity);
++        CatPrint(Str, L"Uart(%ld,", Uart->BaudRate);
+     }
+ 
+     if (Uart->DataBits == 0) {
+-        CatPrint(Str, L"D");
++        CatPrint(Str, L"DEFAULT,");
+     } else {
+-        CatPrint(Str, L"%d",Uart->DataBits);
++        CatPrint(Str, L"%d,", Uart->DataBits);
+     }
+ 
++    CatPrint(Str, L"%c,", Parity);
++
+     switch (Uart->StopBits) {
+         case 0  : CatPrint(Str, L"D)");   break;
+         case 1  : CatPrint(Str, L"1)");   break;
+@@ -933,21 +936,20 @@ _DevPathHardDrive (
+     Hd = DevPath;
+     switch (Hd->SignatureType) {
+         case SIGNATURE_TYPE_MBR:
+-            CatPrint(Str, L"HD(Part%d,Sig%08X)",
++            CatPrint(Str, L"HD(%d,MBR,0x%08x)",
+                 Hd->PartitionNumber,
+                 *((UINT32 *)(&(Hd->Signature[0])))
+                 );
+             break;
+         case SIGNATURE_TYPE_GUID:
+-            CatPrint(Str, L"HD(Part%d,Sig%g)",
++            CatPrint(Str, L"HD(%d,GPT,%g)",
+                 Hd->PartitionNumber,
+                 (EFI_GUID *) &(Hd->Signature[0])
+                 );
+             break;
+         default:
+-            CatPrint(Str, L"HD(Part%d,MBRType=%02x,SigType=%02x)",
++            CatPrint(Str, L"HD(%d,%d,0)",
+                 Hd->PartitionNumber,
+-                Hd->MBRType,
+                 Hd->SignatureType
+                 );
+             break;
+diff --git a/lib/error.c b/lib/error.c
+index 3a856a6f39d..c4d053db633 100644
+--- a/lib/error.c
++++ b/lib/error.c
+@@ -56,7 +56,7 @@ struct {
+ 	{  EFI_COMPROMISED_DATA,       L"Compromised Data"},
+ 
+ 	// warnings
+-	{  EFI_WARN_UNKOWN_GLYPH,      L"Warning Unknown Glyph"},
++	{  EFI_WARN_UNKNOWN_GLYPH,     L"Warning Unknown Glyph"},
+ 	{  EFI_WARN_DELETE_FAILURE,    L"Warning Delete Failure"},
+ 	{  EFI_WARN_WRITE_FAILURE,     L"Warning Write Failure"},
+ 	{  EFI_WARN_BUFFER_TOO_SMALL,  L"Warning Buffer Too Small"},
+diff --git a/lib/runtime/rtstr.c b/lib/runtime/rtstr.c
+index 73965cae192..802e7f43309 100644
+--- a/lib/runtime/rtstr.c
++++ b/lib/runtime/rtstr.c
+@@ -18,7 +18,7 @@ Revision History
+ #include "lib.h"
+ 
+ #ifndef __GNUC__
+-#pragma RUNTIME_CODE(RtAcquireLock)
++#pragma RUNTIME_CODE(RtStrCmp)
+ #endif
+ INTN
+ RUNTIMEFUNCTION
+@@ -76,7 +76,7 @@ RtStrnCpy (
+ }
+ 
+ #ifndef __GNUC__
+-#pragma RUNTIME_CODE(RtStrCpy)
++#pragma RUNTIME_CODE(RtStpCpy)
+ #endif
+ CHAR16 *
+ RUNTIMEFUNCTION
+@@ -122,7 +122,7 @@ RtStrCat (
+     IN CONST CHAR16   *Src
+     )
+ {
+-    RtStrCpy(Dest+StrLen(Dest), Src);
++    RtStrCpy(Dest+RtStrLen(Dest), Src);
+ }
+ 
+ #ifndef __GNUC__
+@@ -138,7 +138,7 @@ RtStrnCat (
+ {
+     UINTN DestSize, Size;
+ 
+-    DestSize = StrLen(Dest);
++    DestSize = RtStrLen(Dest);
+     Size = RtStrnLen(Src, Len);
+     RtCopyMem(Dest + DestSize, Src, Size * sizeof(CHAR16));
+     Dest[DestSize + Size] = '\0';
+@@ -169,11 +169,11 @@ RtStrnLen (
+     IN CONST CHAR16   *s1,
+     IN UINTN           Len
+     )
+-// copy strings
++// string length
+ {
+     UINTN i;
+     for (i = 0; *s1 && i < Len; i++)
+-	    s1++;
++        s1++;
+     return i;
+ }
+ 

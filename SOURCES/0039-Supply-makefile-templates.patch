@@ -1,0 +1,614 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Wed, 13 Nov 2019 15:24:41 -0500
+Subject: [PATCH] Supply makefile templates.
+
+This supplies template makefiles for applications consuming gnu-efi to
+use as:
+
+include efi.mk
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Make.defaults   |   6 +-
+ inc/.gitignore  |   2 +
+ inc/Makefile    |  25 ++++++++-
+ inc/aa64.mk     |  21 +++++++
+ inc/arm.mk      |  21 +++++++
+ inc/efi.mk.3.in | 171 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ inc/efi.mk.in   | 126 +++++++++++++++++++++++++++++++++++++++++
+ inc/ia32.mk     |  30 ++++++++++
+ inc/ia64.mk     |  19 +++++++
+ inc/mips64el.mk |  22 ++++++++
+ inc/x64.mk      |  31 ++++++++++
+ 11 files changed, 470 insertions(+), 4 deletions(-)
+ create mode 100644 inc/.gitignore
+ create mode 100644 inc/aa64.mk
+ create mode 100644 inc/arm.mk
+ create mode 100644 inc/efi.mk.3.in
+ create mode 100644 inc/efi.mk.in
+ create mode 100644 inc/ia32.mk
+ create mode 100644 inc/ia64.mk
+ create mode 100644 inc/mips64el.mk
+ create mode 100644 inc/x64.mk
+
+diff --git a/Make.defaults b/Make.defaults
+index 7231e9bced2..01269660ab8 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -82,12 +82,14 @@ HOSTARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed \
+ 			-e s,amd64,x64, -e s,x86_64,x64, \
+ 			-e s,aarch64,aa64, \
+ 			-e 's,armv[[:digit:]].*,arm,' \
++			-e 's,mips64.*,mips64el,g' \
+ 			)
+ ARCH         ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed \
+ 			-e s,i[3456789]86,ia32, \
+ 			-e s,amd64,x64, -e s,x86_64,x64, \
+ 			-e s,aarch64,aa64, \
+ 			-e 's,armv[[:digit:]].*,arm,' \
++			-e 's,mips64.*,mips64el,g' \
+ 			)
+ BFD_ARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed \
+ 			-e s,i[3456789]86,ia32, \
+@@ -102,6 +104,7 @@ ifneq ($(CROSS_COMPILE),)
+ 			-e s,amd64,x64, -e s,x86_64,x64, \
+ 			-e s,aarch64,aa64, \
+ 			-e 's,armv[[:digit:]].*,arm,' \
++			-e 's,mips64.*,mips64el,g' \
+ 			)
+ endif
+ 
+@@ -161,7 +164,8 @@ ifneq (,$(filter $(ARCH),ia32 x64))
+ endif
+ 
+ ifeq ($(ARCH),mips64el)
+-  CFLAGS += -march=mips64r2
++  CFLAGS += -march=mips64r2 -EL
++  LDFLAGS += -EL
+   ARCH3264 = -mabi=64
+ endif
+ 
+diff --git a/inc/.gitignore b/inc/.gitignore
+new file mode 100644
+index 00000000000..91716c91aab
+--- /dev/null
++++ b/inc/.gitignore
+@@ -0,0 +1,2 @@
++efi.mk
++efi.mk.3
+diff --git a/inc/Makefile b/inc/Makefile
+index e8123fd3115..c7f1406f026 100644
+--- a/inc/Makefile
++++ b/inc/Makefile
+@@ -5,19 +5,38 @@ TOPDIR = $(SRCDIR)/..
+ 
+ include $(SRCDIR)/../Make.defaults
+ 
++# deliberately not putting efi.mk and efi.mk.3 in all, because PREFIX is often
++# not passed before "make install".
+ all:
+ 
+ clean:
++	@rm -vf efi.mk
++
++efi.mk efi.mk.3 : % : %.in
++	sed \
++		-e 's,@@CC@@,$(CC),g' \
++		-e 's,@@PREFIX@@,$(PREFIX),g' \
++		-e 's,@@INCDIR@@,$(PREFIX)/include/efi,g' \
++		-e 's,@@GNUEFIDIR@@,$(LIBDIR)/gnuefi/$$(EFI_ARCH),g' \
++		-e 's,@@LIBEFIDIR@@,$(LIBDIR)/gnuefi/$$(EFI_ARCH),g' \
++		$^ > $@
+ 
+ SOURCE=$(realpath $(SRCDIR))
+-DEST=$(INSTALLROOT)$(PREFIX)/include/efi
++DESTINCDIR=$(INSTALLROOT)$(PREFIX)/include
++DEST=$(DESTINCDIR)/efi
+ INCLUDEDIRS=$(sort $(shell find $(SOURCE) -type d))
++MANDIR ?= $(PREFIX)/share/man
+ 
+-install:
++install: efi.mk efi.mk.3
+ 	@$(foreach d,$(INCLUDEDIRS), \
+ 		$(INSTALL) -v -m 755 -d $(subst $(SOURCE),$(DEST),$(d)); \
+-		$(INSTALL) -v -m 644 -t $(subst $(SOURCE),$(DEST),$(d)) $(wildcard $(d)/*.h); \
++		$(INSTALL) -v -m 644 -t $(subst $(SOURCE),$(DEST),$(d)) $(wildcard $(d)/*.h $(d)/*.mk); \
+ 	)
++	@$(INSTALL) -v -m 644 -t $(DESTINCDIR) efi.mk
++	@$(INSTALL) -v -m 755 -d $(INSTALLROOT)$(MANDIR)/man3
++	@$(INSTALL) -v -m 644 -t $(INSTALLROOT)$(MANDIR)/man3 efi.mk.3
++
++.PHONY: install
+ 
+ install_compat: install
+ 	@if [ ! -h $(DEST)/x86_64 ]; then $(SYMLINK) x64/ $(DEST)/x86_64 ; fi
+diff --git a/inc/aa64.mk b/inc/aa64.mk
+new file mode 100644
+index 00000000000..406915ef742
+--- /dev/null
++++ b/inc/aa64.mk
+@@ -0,0 +1,21 @@
++#
++# efi-aa64.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),aa64)
++
++EFI_ARCH_3264 :=
++EFI_ARCH_SUBSYSTEM := 0xa
++
++EFI_ARCH_CFLAGS := -mstrict-align -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS := --defsym=EFI_SUBSYSTEM=$(EFI_ARCH_SUBSYSTEM)
++EFI_ARCH_FORMAT := -O binary
++EFI_ARCH_SUFFIX := aa64
++EFI_ARCH_SUFFIX_UPPER := AA64
++EFI_ARCH_TIMESTAMP_LOCATION := 72
++EFI_ARCH_HAVE_OBJCOPY := y
++
++export EFI_ARCH_CCLDFLAGS EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264 EFI_ARCH_HAVE_OBJCOPY
++endif
+diff --git a/inc/arm.mk b/inc/arm.mk
+new file mode 100644
+index 00000000000..b47c9c7c61e
+--- /dev/null
++++ b/inc/arm.mk
+@@ -0,0 +1,21 @@
++#
++# efi-arm.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),arm)
++
++EFI_ARCH_3264 :=
++EFI_ARCH_SUBSYSTEM := 0xa
++
++EFI_ARCH_CFLAGS := -mno-unaligned-access -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS := --defsym=EFI_SUBSYSTEM=$(EFI_ARCH_SUBSYSTEM)
++EFI_ARCH_FORMAT := -O binary
++EFI_ARCH_SUFFIX := arm
++EFI_ARCH_SUFFIX_UPPER := ARM
++EFI_ARCH_TIMESTAMP_LOCATION := 72
++EFI_ARCH_HAVE_OBJCOPY := y
++
++export EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264 EFI_ARCH_HAVE_OBJCOPY
++endif
+diff --git a/inc/efi.mk.3.in b/inc/efi.mk.3.in
+new file mode 100644
+index 00000000000..c0bf3f123ed
+--- /dev/null
++++ b/inc/efi.mk.3.in
+@@ -0,0 +1,171 @@
++.TH efi.mk 3 "Thu Nov 21 2019"
++.SH NAME
++efi.mk
++.SH SYNOPSIS
++.nf
++.B include efi.mk
++.SH DESCRIPTION
++.ad l
++.nh
++The \fBgnu-efi\fR library provides a set of makefiles which produce \fBEFI\fR
++binaries on the supported platforms, as well as a number of make variables
++which can be set to control how each step gets built.  These can be set in your
++makefile or on the command line, but are normally set to reasonable defaults.
++Usually you'll just want to use the \fI+=\fR operator, as shown in the
++.BR EXAMPLES
++section below, rather than fully replacing these.
++.SS make variables
++.RS 4
++.TP
++.B \fBEFI_ARCH_CFLAGS\fR
++Architecture specific \fBgcc\fR command line options for building a \fI.efi.o\fR
++.TP
++.B \fBEFI_ARCH_LDFLAGS\fR
++Architecture specific \fBld\fR command line options for building the \fI.efi.so\fR
++.TP
++.B \fBEFI_ARCH_FORMAT\fR
++Architecture specific \fBobjcopy\fR arguments for building the final \fI.efi\fR binary
++.TP
++.B \fBCROSS_COMPILE\fR
++Compiler prefix for cross-compilation.  For example, "\fIaarch64-linux-gnu-\fR".
++.TP
++.B \fBEFI_CC\fR
++\p The C compiler.  Defaults to either \fI$(CROSS_COMPILE)gcc\fR or \fI$(CROSS_COMPILE)clang\fR,
++depending on what \fI$(CC)\fR was set to when \fBgnu-efi\fR was built.
++.TP
++.B \fBEFI_HOSTCC\fR
++Defaults to whatever \fI$(CC)\fR was set to when \fBgnu-efi\fR was built.
++.TP
++.B \fBEFI_HOSTARCH\fR
++One of \fIaa64\fR, \fIarm\fR, \fIia32\fR, \fIia64\fR, \fIx64\fR, or
++\fImips64el\fR, representing the \fBEFI\fR architecture name of the host machine
++during the build.
++.TP
++.B \fBEFI_ARCH\fR
++One of \fIaa64\fR, \fIarm\fR, \fIia32\fR, \fIia64\fR, \fIx64\fR, or
++\fImips64el\fR, representing the \fBEFI\fR architecture name of the target.
++.TP
++.B \fBEFI_BFDARCH\fR
++The architecture name for the BFD target for objcopy.
++.TP
++.B \fBEFI_ARCH_3264\fR
++Usually empty; if you're cross compiling, this will default to e.g. \fI-m64\fR if
++you're building for an \fIx64\fR target on an \fIi686\fR host.
++.TP
++.B \fBEFI_CC_INCLUDES\fR
++The list of default include path for the compiler, as a \fBgcc\fR command line
++argument.  Defaults to the output of \fI$(EFI_CC) $(EFI_ARCH_3264)
++-print-file-name=include\fR, for example
++\fI/usr/lib/gcc/x86_64-redhat-linux/9/include\fR.  Note that there is no
++\fI-I\fR prefix on these.
++.TP
++.B \fBEFI_INCLUDES\fR
++The \fBgnu-efi\fR include paths.  Note that there is no \fI-I\fR prefix on these.
++.TP
++.B \fBEFI_CPPFLAGS\fR
++Flags passed to \fBgcc\fR regardless of the build target.
++.TP
++.B \fBEFI_CFLAGS\fR
++Flags passed to \fBgcc\fR for building any binary target.  Defaults to
++\fI$(EFI_CPPFLAGS) $(EFI_ARCH_CFLAGS)\fR.
++.TP
++.B \fBEFI_LDSCRIPT\fR
++The linker script passed to \fBld -T\fR for linking \fI.efi.so\fR build targets.
++Defaults to \fI@@PREFIX@@/lib/gnuefi/$(EFI_ARCH)/efi.lds\fR.
++.TP
++.B \fBEFI_LIBGCC\fR
++The path to \fBlibgcc\fR.  Defaults to the result of
++\fI$(EFI_CC) $(EFI_ARCH_3264) -print-libgcc-file-name\fR
++.TP
++.B \fBEFI_LDFLAGS\fR
++Other command line to pass to \fBld\fR
++.ul
++before
++object names. Defaults to
++\fI-nostdlib --warn-common --no-undefined --fatal-warnings \
++--build-id=sha1 -shared -Bsymbolic -L@@PREFIX@@/lib/gnuefi/$(EFI_ARCH) \
++@@PREFIX@@/lib/gnuefi/$(EFI_ARCH)/crt0.o\fR
++.TP
++.B \fBEFI_CCLDFLAGS\fR
++Normally derived from \fI$(EFI_LDFLAGS)\fR.
++.TP
++.B \fBEFI_LDLIBS\fR
++Libraries to pass to \fBld\fR
++.ul
++after
++target object names.  Defaults
++to \fI-lefi -lgnuefi $(EFI_LIBGCC) -T $(EFI_LDSCRIPT)\fR
++.TP
++.B \fBEFI_CCLDLIBS\fR
++Derived from \fI$(EFI_LDLIBS)\fR.
++.TP
++.B \fBEFI_ARFLAGS\fR
++Flags to pass to ar to make a \fI.efi.a\fR target.  Defaults to "\fIrDv\fR".
++.TP
++.B \fBEFI_ASFLAGS\fR
++Flags to pass to gcc to make a \fI.efi.o\fR object from a \fI.S\fR file.
++.TP
++.B \fBEFI_OBJCOPY_FLAGS\fR
++Flags to pass to objcopy to make a \fI.efi\fR binary target.  Defaults to
++\fI--file-alignment 512 --section-alignment 4096 -D\fR
++.TP
++.B \fBEFI_BIN_SECTIONS\fR
++Names of sections to go into \fI.efi\fR binary targets.  If you have special
++sections, add them here.
++.TP
++.B \fBEFI_DEBUG_SECTIONS\fR
++Names of sections to go into \fI.efi.debug\fR targets.  If you have special
++debug sections, add them here.
++.RE
++.TP
++In addition, there are several make rules defined, which those variables affect
++as appropriate:
++.RS 4
++.TP
++.B \fB%.efi : %.efi.so\fB
++Build a \fI.efi\fR binary
++.TP
++.B \fB%.efi.debug : %efi.so\fR
++Build debuginfo
++.TP
++.B \fB%.efi.so :\fR
++Build the intermediate \fI.efi.so\fR to be linked as a \fI.efi\fR binary.  Add
++\fI.o\fR files as dependencies to a concrete \fI.efi.so\fR rule in order to
++define targets.
++.TP
++.B \fB%.efi.a :\fR
++Build an intermediate archive file for linking into a \fI.efi.so\fR
++.TP
++.B \fB%.efi.o : %.c\fR
++Build an object file from a \fI.c\fR file
++.TP
++.B \fB%.efi.o : %.S\fR
++Build an object file from a \fI.S\fR file
++.TP
++.B \fBefi_clean :\fR
++Remove all files in the current working directory with the suffixes
++\fI.efi\fR, \fI.efi.a\fR, \fI.efi.debug\fR, \fI.efi.o\fR, or \fI.efi.so\fR.
++.SH EXAMPLES
++This is a simple makefile used to build an \fBEFI\fR binary named \fIfoo.efi\fR from source files \fIfoo.c\fR and \fIbar.c\fR.  It includes the special section \fI.weird\fR in the final binary, and the name of that is defined within the \fI.c\fR source files using the macro \fIWEIRD_SECTION_NAME\fR:
++.RS 4
++\p include efi.mk
++.br
++\p all : foo.efi
++.br
++\p %.efi.o : | EFI_CFLAGS+=-DWEIRD_SECTION_NAME=\\".weird\\"
++.br
++\p foo.efi : | EFI_BIN_SECTIONS+=.weird
++.br
++foo.efi.so : foo.efi.o bar.efi.o
++.br
++\p clean : efi_clean
++.RE
++\p The following example shows how to cross-compile a binary for another architecture (in this case, \fIARM Aarch64\fR, which \fBEFI\fR calls \fIaa64\fR).  This assumes that you have the \fIcrt0.o\fR, \fIefi.lds\fR, \fIlibgnuefi.a\fR, and \fIlibefi.a\fR files for \fIAarch64\fR installed in \fI@@PREFIX@@/lib/gnuefi/aa64/\fR\.
++.RS 4
++\p $ make CROSS_COMPILE=aarch64-linux-gnu- EFI_ARCH=aa64 foo.efi
++.RE
++.fi
++.SH AUTHORS
++.nf
++Peter Jones <pjones@redhat.com>
++.fi
+diff --git a/inc/efi.mk.in b/inc/efi.mk.in
+new file mode 100644
+index 00000000000..3de783a5a05
+--- /dev/null
++++ b/inc/efi.mk.in
+@@ -0,0 +1,126 @@
++#
++# efi.mk
++# Peter Jones, 2019-11-13 14:11
++#
++
++_efi_comma=,
++_efi_empty=
++_efi_space=$(_efi_empty) $(_efi_empty)
++
++CROSS_COMPILE ?=
++OBJCOPY ?= $(CROSS_COMPILE)objcopy
++LD ?= $(CROSS_COMPILE)ld
++
++EFI_OBJCOPY_GTE224  = $(shell expr `$(OBJCOPY) --version |grep ^"GNU objcopy" | sed 's/^.*\((.*)\|version\) //g' | cut -f1-2 -d.` \>= 2.24)
++
++EFI_CC ?= $(CROSS_COMPILE)@@CC@@
++EFI_HOSTCC ?= @@CC@@
++
++EFI_HOSTARCH ?= $(shell $(EFI_HOSTCC) -dumpmachine | cut -f1 -d- | \
++		sed \
++			-e s,i[3456789]86,ia32, \
++                        -e s,amd64,x64, \
++			-e s,x86_64,x64, \
++                        -e s,aarch64,aa64, \
++			-e 's,armv[[:digit:]].*,arm,' \
++                        )
++EFI_ARCH ?= $(shell $(EFI_CC) -dumpmachine | cut -f1 -d- | \
++		sed \
++			-e s,i[3456789]86,ia32, \
++                        -e s,amd64,x64, \
++			-e s,x86_64,x64, \
++                        -e s,aarch64,aa64, \
++			-e 's,armv[[:digit:]].*,arm,' \
++                        )
++EFI_BFDARCH ?= $(shell $(EFI_CC) -dumpmachine | cut -f1 -d- | \
++		sed \
++			-e s,i[3456789]86,ia32, \
++                        -e s,amd64,x86_64, \
++			-e 's,armv[[:digit:]].*,arm,' \
++                        )
++
++include efi/$(EFI_ARCH).mk
++
++GNUEFI_LIB_PATHS := $(sort @@LIBEFIDIR@@ @@GNUEFIDIR@@)
++GNUEFI_LDFLAGS := -nostdlib --warn-common --no-undefined --fatal-warnings \
++		  --build-id=sha1 -shared -Bsymbolic --exclude-libs ALL \
++		  $(foreach x,$(GNUEFI_LIB_PATHS),-L$(x)) @@GNUEFIDIR@@/crt0.o
++
++ifeq ($(origin EFI_CC_INCLUDES),undefined)
++EFI_CC_INCLUDES := $(foreach x,$(shell $(EFI_CC) $(EFI_ARCH_3264) -print-file-name=include),-I$(x))
++endif
++EFI_INCLUDES ?= -I@@INCDIR@@ -I@@INCDIR@@/$(EFI_ARCH) -I@@INCDIR@@/protocol
++EFI_CPPFLAGS ?= -ffreestanding -nostdlib -fpic \
++		$(EFI_INCLUDES) $(EFI_CC_INCLUDES) \
++		-DCONFIG_$(EFI_ARCH) -DCONFIG_ARCH=$(EFI_ARCH) \
++		-Wno-error=pragmas -fvisibility=hidden \
++		-fshort-wchar -fno-strict-aliasing -fno-stack-protector \
++		$(if $(findstring gcc,$(EFI_CC)),-fno-merge-all-constants,) \
++		$(EFI_ARCH_CPPFLAGS)
++EFI_CFLAGS ?= $(EFI_CPPFLAGS) $(EFI_ARCH_CFLAGS)
++ifeq ($(origin EFI_LDLIBS),undefined)
++EFI_LDLIBS := -lefi -lgnuefi
++endif
++ifeq ($(origin EFI_LDFLAGS),undefined)
++EFI_LDFLAGS := $(GNUEFI_LDFLAGS) $(EFI_ARCH_LDFLAGS)
++endif
++EFI_CCLDLIBS ?= $(foreach x,$(EFI_LDLIBS),$(x))
++EFI_CCLDFLAGS ?= $(foreach x,$(EFI_LDFLAGS),-Wl$(_efi_comma)$(x))
++EFI_ARFLAGS ?= rDv
++EFI_ASFLAGS ?= $(EFI_ARCH_3264)
++EFI_LIBGCC ?= $(shell $(EFI_CC) $(EFI_ARCH_3264) -print-libgcc-file-name)
++EFI_LDSCRIPT ?= @@GNUEFIDIR@@/efi.lds
++_EFI_CCLDLIBS = $(subst $(_efi_space),$(_efi_comma),-Wl --start-group $(foreach x,$(EFI_CCLDLIBS),$(x)) --end-group)
++
++EFI_BIN_SECTIONS ?= .text .sdata .data .dynamic .dynsym \
++		    .rel .rel.* .rela .rela.* .reloc \
++		    .eh_frame .note.gnu.build-id .ctf \
++		    $(EFI_ARCH_BIN_SECTIONS)
++
++EFI_DEBUG_SECTIONS ?= .debug* .eh_frame .note.gnu.build-id .ctf \
++		      $(EFI_ARCH_DEBUG_SECTIONS)
++EFI_OBJCOPY_FLAGS ?= --file-alignment 512 --section-alignment 4096 -D
++
++%.efi : %.efi.so
++ifneq ($(EFI_OBJCOPY_GTE224),1)
++        $(error objcopy >= 2.24 is required)
++endif
++	$(OBJCOPY) $(EFI_OBJCOPY_FLAGS) \
++		$(foreach x,$(EFI_BIN_SECTIONS),-j $(x)) \
++		$(EFI_ARCH_FORMAT) $*.efi.so $@
++
++%.efi.debug : %.efi.so
++ifneq ($(EFI_OBJCOPY_GTE224),1)
++        $(error objcopy >= 2.24 is required)
++endif
++	$(OBJCOPY) $(EFI_OBJCOPY_FLAGS) \
++		$(foreach x,$(EFI_DEBUG_SECTIONS),-j $(x)) \
++		$(EFI_ARCH_FORMAT) $*.efi.so $@
++
++%.efi.a :
++	$(AR) $(EFI_ARFLAGS) $@ $^
++
++%.efi.so :
++	$(EFI_CC) $(EFI_CFLAGS) $(EFI_CCLDFLAGS) -o $@ $^ $(_EFI_CCLDLIBS) $(EFI_LIBGCC) -T $(EFI_LDSCRIPT)
++
++%.efi.o : %.c
++	$(EFI_CC) $(EFI_CFLAGS) -c -o $@ $<
++
++%.efi.o : %.S
++	$(EFI_CC) $(EFI_CFLAGS) -c -o $@ $<
++
++efi_clean ::
++	@rm -vf *.efi.{a,debug,o,so} *.efi
++
++.PHONY: efi_clean
++
++export EFI_ARCH
++export EFI_ARCH_CCLDFLAGS EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_CLANG_BUGS EFI_ARCH_CAN_DISABLE_AVX
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264
++export EFI_ARFLAGS EFI_ASFLAGS EFI_BFDARCH EFI_CC EFI_CFLAGS EFI_CPPFLAGS
++export EFI_LDFLAGS EFI_LDSCRIPT EFI_HOSTARCH EFI_HOSTCC EFI_INCLUDES
++export EFI_LIBGCC EFI_LIBS
++
++# vim:ft=make
+diff --git a/inc/ia32.mk b/inc/ia32.mk
+new file mode 100644
+index 00000000000..d961db70031
+--- /dev/null
++++ b/inc/ia32.mk
+@@ -0,0 +1,30 @@
++#
++# efi-ia32.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),ia32)
++
++ifeq ($(EFI_HOSTARCH),x64)
++EFI_ARCH_3264 := -m32
++else
++EFI_ARCH_3264 :=
++endif
++EFI_ARCH_CAN_DISABLE_AVX := $(shell $(EFI_CC) -Werror -c -o /dev/null -xc -mno-avx - </dev/null >/dev/null 2>&1 && echo -mno-avx)
++EFI_ARCH_CLANG_BUGS := $(if $(findstring gcc,$(EFI_CC)),-maccumulate-outgoing-args,)
++
++EFI_ARCH_CFLAGS := -mno-mmx -mno-sse \
++		   $(EFI_ARCH_3264) \
++		   $(EFI_ARCH_CAN_DISABLE_AVX) \
++		   $(EFI_ARCH_CLANG_BUGS) \
++		   -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS :=
++EFI_ARCH_FORMAT := --target efi-app-$(EFI_BFDARCH)
++EFI_ARCH_SUFFIX := ia32
++EFI_ARCH_SUFFIX_UPPER := IA32
++EFI_ARCH_TIMESTAMP_LOCATION := 136
++
++export EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264
++export EFI_ARCH_CLANG_BUGS EFI_ARCH_CAN_DISABLE_AVX
++endif
+diff --git a/inc/ia64.mk b/inc/ia64.mk
+new file mode 100644
+index 00000000000..29b3f1c4f8e
+--- /dev/null
++++ b/inc/ia64.mk
+@@ -0,0 +1,19 @@
++#
++# efi-ia64.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),ia64)
++
++EFI_ARCH_CFLAGS := -mfixed-range=f32-f127 -m64 \
++		   -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS :=
++EFI_ARCH_SUFFIX := ia64
++EFI_ARCH_SUFFIX_UPPER := IA64
++# XXX I have no idea if this is right
++EFI_ARCH_TIMESTAMP_LOCATION := 136
++
++export EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264
++export EFI_ARCH_CLANG_BUGS EFI_ARCH_CAN_DISABLE_AVX
++endif
+diff --git a/inc/mips64el.mk b/inc/mips64el.mk
+new file mode 100644
+index 00000000000..257180955b6
+--- /dev/null
++++ b/inc/mips64el.mk
+@@ -0,0 +1,22 @@
++#
++# efi-mips64el.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),mips64el)
++
++EFI_ARCH_3264 := -mabi=64
++
++EFI_ARCH_CFLAGS := -march=mips64r2 -EL $(EFI_ARCH_3264) \
++		   -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS := -EL
++EFI_ARCH_FORMAT := --target efi-app-$(EFI_BFDARCH)
++EFI_ARCH_SUFFIX := mips64el
++EFI_ARCH_SUFFIX_UPPER := MIPS64EL
++# XXX I have no idea if this is right
++EFI_ARCH_TIMESTAMP_LOCATION := 136
++EFI_ARCH_HAVE_OBJCOPY := y
++
++export EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264 EFI_ARCH_HAVE_OBJCOPY
++endif
+diff --git a/inc/x64.mk b/inc/x64.mk
+new file mode 100644
+index 00000000000..bc1093988b3
+--- /dev/null
++++ b/inc/x64.mk
+@@ -0,0 +1,31 @@
++#
++# efi-x64.mk
++# Peter Jones, 2019-11-13 14:27
++#
++ifeq ($(EFI_ARCH),x64)
++
++ifeq ($(EFI_HOSTARCH),ia32)
++EFI_ARCH_3264 := -m64
++else
++EFI_ARCH_3264 :=
++endif
++EFI_ARCH_CAN_DISABLE_AVX := $(shell $(EFI_CC) -Werror -c -o /dev/null -xc -mno-avx - </dev/null >/dev/null 2>&1 && echo -mno-avx)
++EFI_ARCH_CLANG_BUGS := $(if $(findstring gcc,$(EFI_CC)),-maccumulate-outgoing-args,)
++
++EFI_ARCH_CFLAGS := -mno-mmx -mno-sse -mno-red-zone \
++		   $(EFI_ARCH_3264) \
++		   $(EFI_ARCH_CAN_DISABLE_AVX) \
++		   $(EFI_ARCH_CLANG_BUGS) \
++		   -DEFI_FUNCTION_WRAPPER -DGNU_EFI_USE_MS_ABI \
++		   -DPAGE_SIZE=4096 -DPAGE_SHIFT=12
++EFI_ARCH_LDFLAGS :=
++EFI_ARCH_FORMAT := --target efi-app-$(EFI_BFDARCH)
++EFI_ARCH_SUFFIX := x64
++EFI_ARCH_SUFFIX_UPPER := X64
++EFI_ARCH_TIMESTAMP_LOCATION := 136
++
++export EFI_ARCH_CFLAGS EFI_ARCH_CPPFLAGS EFI_ARCH_LDFLAGS
++export EFI_ARCH_FORMAT EFI_ARCH_SUBSYSTEM EFI_ARCH_SUFFIX EFI_ARCH_SUFFIX_UPPER
++export EFI_ARCH_TIMESTAMP_LOCATION EFI_ARCH_3264
++export EFI_ARCH_CLANG_BUGS EFI_ARCH_CAN_DISABLE_AVX
++endif

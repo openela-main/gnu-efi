@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Thu, 14 Nov 2019 09:54:39 -0500
+Subject: [PATCH] make: Fix shell exit status handling.
+
+Right now whenever we have shell commands with loops, errors in the
+middle are accidentally ignored, and make continues to process commands.
+
+This adds "set -e" to all of those, so they'll propagate back up.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ Makefile     | 4 ++--
+ lib/Makefile | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 84f07d33a48..a461a5c3483 100644
+--- a/Makefile
++++ b/Makefile
+@@ -81,14 +81,14 @@ $(SUBDIRS):
+ 
+ clean:
+ 	rm -f *~
+-	@for d in $(SUBDIRS); do \
++	@set -e ; for d in $(SUBDIRS); do \
+ 		if [ -d $(OBJDIR)/$$d ]; then \
+ 			$(MAKE) -C $(OBJDIR)/$$d -f $(SRCDIR)/$$d/Makefile SRCDIR=$(SRCDIR)/$$d clean; \
+ 		fi; \
+ 	done
+ 
+ install:
+-	@for d in $(SUBDIRS); do \
++	@set -e ; for d in $(SUBDIRS); do \
+ 		mkdir -p $(OBJDIR)/$$d; \
+ 		$(MAKE) -C $(OBJDIR)/$$d -f $(SRCDIR)/$$d/Makefile SRCDIR=$(SRCDIR)/$$d install; done
+ 
+diff --git a/lib/Makefile b/lib/Makefile
+index e7eafc01f1e..6fd472ad1ac 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -72,7 +72,7 @@ all: libsubdirs libefi.a
+ 
+ .PHONY: libsubdirs
+ libsubdirs:
+-	for sdir in $(SUBDIRS); do mkdir -p $$sdir; done
++	@set -e ; for sdir in $(SUBDIRS); do mkdir -p $$sdir; done
+ 
+ libefi.a: $(OBJS)
+ 	$(AR) $(ARFLAGS) $@ $^

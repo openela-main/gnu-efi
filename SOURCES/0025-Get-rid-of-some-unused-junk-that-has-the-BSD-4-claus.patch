@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Thu, 19 Jul 2018 13:12:44 -0400
+Subject: [PATCH] Get rid of some unused junk that has the BSD 4-clause
+ license.
+
+We don't need any of this, and its license is not GPL compatible.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ inc/Makefile                   |   4 ----
+ inc/protocol/efidbg.h          | Bin 6634 -> 0 bytes
+ inc/protocol/ia64/eficontext.h | Bin 5111 -> 0 bytes
+ inc/protocol/makefile.hdr      | Bin 640 -> 0 bytes
+ 4 files changed, 4 deletions(-)
+ delete mode 100644 inc/protocol/efidbg.h
+ delete mode 100644 inc/protocol/ia64/eficontext.h
+ delete mode 100644 inc/protocol/makefile.hdr
+
+diff --git a/inc/Makefile b/inc/Makefile
+index 273d30307ae..dd36bb0103d 100644
+--- a/inc/Makefile
++++ b/inc/Makefile
+@@ -19,9 +19,5 @@ install:
+ 	$(INSTALL) -m 644 $(SRCDIR)/*.h $(INSTALLROOT)$(PREFIX)/include/efi
+ 	$(INSTALL) -m 644 $(SRCDIR)/protocol/*.h $(INSTALLROOT)$(PREFIX)/include/efi/protocol
+ 	$(INSTALL) -m 644 $(SRCDIR)/$(ARCH)/*.h $(INSTALLROOT)$(PREFIX)/include/efi/$(ARCH)
+-ifeq ($(ARCH),ia64)
+-	mkdir -p $(INSTALLROOT)$(PREFIX)/include/efi/protocol/ia64
+-	$(INSTALL) -m 644 $(SRCDIR)/protocol/ia64/*.h $(INSTALLROOT)$(PREFIX)/include/efi/protocol/ia64
+-endif
+ 
+ include $(SRCDIR)/../Make.rules
+diff --git a/inc/protocol/efidbg.h b/inc/protocol/efidbg.h
+deleted file mode 100644
+index 1f95a70bb42f7b2669fa362f80bc50fe2663aaa8..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 6634
+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
+aHI!CssuET24>&yb7wouJI-_E><LbXng#q*c
+
+diff --git a/inc/protocol/ia64/eficontext.h b/inc/protocol/ia64/eficontext.h
+deleted file mode 100644
+index 1a39a6db1e45c8bdf96348e5e2fa82567e61df89..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 5111
+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
+AYXATM
+
+diff --git a/inc/protocol/makefile.hdr b/inc/protocol/makefile.hdr
+deleted file mode 100644
+index 118d6ba3a08df254b3cf4eeecce923bdac063f3a..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 640
+zcmb7>PiurQ5XJ9;-(l){&_fschtfTGDC(BbMHlrbNYtpIF_CDO_1iaTcS}n_FyxS7
+z=J)3DVj3IM*g)3N5!A)d<Eo>aKub80cp^14lo7avAciQ;APi8Z33Xn7M#@>w_xPP`
+z$(j6XH&XOUSam6HE?r*?v!rb|fm69~x7$4fAU+WWzL0}ZtEu2>)-+55MSc;4#}quU
+zoonGjZW`K#?WDn5fub~fIUI@rC2mf6#Xf41lZNJl6qBd~)5QtPZMT+Vq{Y=-3Nfu`
+zPYPvt9M_Y|ZC$qCoX+3|?ZL90V-oven#PH1f#-pR@WZ{el+YI&MgiLE*MiQ|<D$-*
+Sq<`Dgu~$NU?D-PkUqhea3AS$l
+

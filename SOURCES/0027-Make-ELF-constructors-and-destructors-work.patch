@@ -1,0 +1,756 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Fri, 23 Aug 2019 16:23:21 -0400
+Subject: [PATCH] Make ELF constructors and destructors work.
+
+This makes setup and teardown functions defined with
+__attribute__((__constructor__) and __attribute__((__destructor__)) work
+in normal circumstances in EFI binaries.
+
+A couple of notes:
+- it implements both the old-style .ctors/.dtors methods and the newer
+  style .init_array/.fini_array ELF constructor and destructor arrays,
+  processed in the order:
+    .init_array[]
+    .ctors[]
+    efi_main()
+    .dtors[]
+    .fini_array[]
+- Destructors will only be called if efi_main() exits using "return";
+  any call to Exit() will still longjmp() past them.
+- InitializeLib() has already been called before constructors run, so
+  they don't need to call it (and neither does anything else.)  For
+  compatibility, it has been altered so calling it more than once is
+  safe.
+- No attempt is made to handle any constructor or destructor with a
+  prototype other than "void func(void);", but note that InitializeLib
+  has been called, so LibImageHandle, ST, BS, and RT are set.
+- The init_array/ctor/dtor/fini_array lists aren't the using the GNU
+  "CONSTRUCTOR" output section command, so they don't start with a size.
+- The lists are individually sorted during the link stage via
+  SORT_BY_NAME() in the linker script.
+- The default (empty) init_array/ctor/dtor/fini_array lists are padded
+  out to 8-byte alignment with ".p2align 3, 0", and each list always has
+  at least one ".long 0" at the end of it (even if it's completely
+  empty).  As a result, they can have NULLs that need to be skipped.
+  The sections they're in are mergeable, so the NULLs don't have to be
+  exclusively at the end.
+- The ia64 and mips64el arches have not been tested.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ apps/Makefile                |  5 ++-
+ apps/ctors_fns.c             | 26 +++++++++++++
+ apps/ctors_test.c            | 20 ++++++++++
+ gnuefi/crt0-efi-aa64.S       |  2 +-
+ gnuefi/crt0-efi-arm.S        |  2 +-
+ gnuefi/crt0-efi-ia32.S       |  8 ++--
+ gnuefi/crt0-efi-ia64.S       |  2 +-
+ gnuefi/crt0-efi-mips64el.S   |  4 +-
+ gnuefi/crt0-efi-x64.S        |  2 +-
+ gnuefi/elf_aa64_efi.lds      | 21 +++++++++++
+ gnuefi/elf_arm_efi.lds       | 20 ++++++++++
+ gnuefi/elf_ia32_efi.lds      | 21 +++++++++++
+ gnuefi/elf_ia32_fbsd_efi.lds | 21 +++++++++++
+ gnuefi/elf_ia64_efi.lds      | 21 +++++++++++
+ gnuefi/elf_mips64el_efi.lds  | 20 ++++++++++
+ gnuefi/elf_x64_efi.lds       | 22 +++++++++++
+ gnuefi/elf_x64_fbsd_efi.lds  | 21 +++++++++++
+ lib/Makefile                 |  6 +--
+ lib/ctors.S                  | 43 ++++++++++++++++++++++
+ lib/entry.c                  | 67 ++++++++++++++++++++++++++++++++++
+ lib/init.c                   | 87 +++++++++++++++++++++-----------------------
+ 21 files changed, 381 insertions(+), 60 deletions(-)
+ create mode 100644 apps/ctors_fns.c
+ create mode 100644 apps/ctors_test.c
+ create mode 100644 lib/ctors.S
+ create mode 100644 lib/entry.c
+
+diff --git a/apps/Makefile b/apps/Makefile
+index a95620cba2d..28088370da7 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -62,7 +62,8 @@ TARGET_APPS = t.efi t2.efi t3.efi t4.efi t5.efi t6.efi \
+ 	      printenv.efi t7.efi t8.efi tcc.efi modelist.efi \
+ 	      route80h.efi drv0_use.efi AllocPages.efi exit.efi \
+ 	      FreePages.efi setjmp.efi debughook.efi debughook.efi.debug \
+-	      bltgrid.efi lfbgrid.efi setdbg.efi unsetdbg.efi
++	      bltgrid.efi lfbgrid.efi setdbg.efi unsetdbg.efi \
++	      ctors_test.efi
+ TARGET_BSDRIVERS = drv0.efi
+ TARGET_RTDRIVERS =
+ 
+@@ -87,6 +88,8 @@ TARGETS = $(TARGET_APPS) $(TARGET_BSDRIVERS) $(TARGET_RTDRIVERS)
+ 
+ all:	$(TARGETS)
+ 
++ctors_test.so : ctors_fns.o ctors_test.o
++
+ clean:
+ 	rm -f $(TARGETS) *~ *.o *.so
+ 
+diff --git a/apps/ctors_fns.c b/apps/ctors_fns.c
+new file mode 100644
+index 00000000000..624190462ea
+--- /dev/null
++++ b/apps/ctors_fns.c
+@@ -0,0 +1,26 @@
++/*
++ * ctors.c
++ * Copyright 2019 Peter Jones <pjones@redhat.com>
++ *
++ */
++
++#include <efi.h>
++#include <efilib.h>
++
++int constructed_value = 0;
++
++static void __attribute__((__constructor__)) ctor(void)
++{
++	Print(L"%a:%d:%a() constructed_value:%d\n", __FILE__, __LINE__, __func__, constructed_value);
++	constructed_value = 1;
++	Print(L"%a:%d:%a() constructed_value:%d\n", __FILE__, __LINE__, __func__, constructed_value);
++}
++
++static void __attribute__((__destructor__)) dtor(void)
++{
++	Print(L"%a:%d:%a() constructed_value:%d\n", __FILE__, __LINE__, __func__, constructed_value);
++	constructed_value = 0;
++	Print(L"%a:%d:%a() constructed_value:%d\n", __FILE__, __LINE__, __func__, constructed_value);
++}
++
++// vim:fenc=utf-8:tw=75:noet
+diff --git a/apps/ctors_test.c b/apps/ctors_test.c
+new file mode 100644
+index 00000000000..7e48da8ef35
+--- /dev/null
++++ b/apps/ctors_test.c
+@@ -0,0 +1,20 @@
++/*
++ * ctors_test.c
++ * Copyright 2019 Peter Jones <pjones@redhat.com>
++ *
++ */
++
++#include <efi.h>
++#include <efilib.h>
++
++extern int constructed_value;
++
++EFI_STATUS
++efi_main (EFI_HANDLE image EFI_UNUSED, EFI_SYSTEM_TABLE *systab EFI_UNUSED)
++{
++	Print(L"%a:%d:%a() constructed_value:%d\n", __FILE__, __LINE__, __func__, constructed_value);
++
++	return EFI_SUCCESS;
++}
++
++// vim:fenc=utf-8:tw=75:noet
+diff --git a/gnuefi/crt0-efi-aa64.S b/gnuefi/crt0-efi-aa64.S
+index d6e610b8c79..a9302588b71 100644
+--- a/gnuefi/crt0-efi-aa64.S
++++ b/gnuefi/crt0-efi-aa64.S
+@@ -124,7 +124,7 @@ _start:
+ 	cbnz		x0, 0f
+ 
+ 	ldp		x0, x1, [sp, #16]
+-	bl		efi_main
++	bl		_entry
+ 
+ 0:	ldp		x29, x30, [sp], #32
+ 	ret
+diff --git a/gnuefi/crt0-efi-arm.S b/gnuefi/crt0-efi-arm.S
+index c5bb6d482da..04e75e9481a 100644
+--- a/gnuefi/crt0-efi-arm.S
++++ b/gnuefi/crt0-efi-arm.S
+@@ -136,7 +136,7 @@ _start:
+ 	bne		0f
+ 
+ 	ldmfd		sp, {r0-r1}
+-	bl		efi_main
++	bl		_entry
+ 
+ 0:	add		sp, sp, #12
+ 	ldr		pc, [sp], #4
+diff --git a/gnuefi/crt0-efi-ia32.S b/gnuefi/crt0-efi-ia32.S
+index f9d5191ecb5..8e8e372f551 100644
+--- a/gnuefi/crt0-efi-ia32.S
++++ b/gnuefi/crt0-efi-ia32.S
+@@ -56,13 +56,13 @@ _start:
+ 	call _relocate
+ 	popl %ebx
+ 	popl %ebx
+- 	testl %eax,%eax
+- 	jne .exit
++	testl %eax,%eax
++	jne .exit
+   
+-  	call efi_main			# call app with "image" and "systab" argument
++	call _entry			# call app with "image" and "systab" argument
+ 
+ .exit:	leave
+-  	ret
++	ret
+  
+  	// hand-craft a dummy .reloc section so EFI knows it's a relocatable executable:
+  
+diff --git a/gnuefi/crt0-efi-ia64.S b/gnuefi/crt0-efi-ia64.S
+index 40c3c837a1c..dacb4c4c658 100644
+--- a/gnuefi/crt0-efi-ia64.S
++++ b/gnuefi/crt0-efi-ia64.S
+@@ -56,7 +56,7 @@ _start:
+ 
+ 	mov out0=in0			// image handle
+ 	mov out1=in1			// systab
+-	br.call.sptk.few rp=efi_main
++	br.call.sptk.few rp=_entry
+ .Lret2:
+ .exit:
+ 	mov ar.pfs=loc0
+diff --git a/gnuefi/crt0-efi-mips64el.S b/gnuefi/crt0-efi-mips64el.S
+index 6a62aca98b4..5ad2503ca79 100644
+--- a/gnuefi/crt0-efi-mips64el.S
++++ b/gnuefi/crt0-efi-mips64el.S
+@@ -172,8 +172,8 @@ _pc:
+ 
+ 	// a0: ImageHandle
+ 	ld		$a0, 16($sp)
+-	// call efi_main
+-	dla		$t9, efi_main
++	// call _start
++	dla		$t9, _entry
+ 	jalr		$t9
+ 	// a1: SystemTable
+ 	ld		$a1, 24($sp)
+diff --git a/gnuefi/crt0-efi-x64.S b/gnuefi/crt0-efi-x64.S
+index 6533af7461f..3fe361b7ffd 100644
+--- a/gnuefi/crt0-efi-x64.S
++++ b/gnuefi/crt0-efi-x64.S
+@@ -56,7 +56,7 @@ _start:
+ 	popq %rdi
+ 	popq %rsi
+ 
+-	call efi_main
++	call _entry
+ 	addq $8, %rsp
+ 
+ .exit:	
+diff --git a/gnuefi/elf_aa64_efi.lds b/gnuefi/elf_aa64_efi.lds
+index 836d98255d8..161f5fc5641 100644
+--- a/gnuefi/elf_aa64_efi.lds
++++ b/gnuefi/elf_aa64_efi.lds
+@@ -26,6 +26,26 @@ SECTIONS
+    *(.got.plt)
+    *(.got)
+ 
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    . = ALIGN(16);
+@@ -36,6 +56,7 @@ SECTIONS
+    *(.bss)
+    *(COMMON)
+    . = ALIGN(16);
++
+    _bss_end = .;
+   }
+ 
+diff --git a/gnuefi/elf_arm_efi.lds b/gnuefi/elf_arm_efi.lds
+index 665bbdbf065..f93f39bc384 100644
+--- a/gnuefi/elf_arm_efi.lds
++++ b/gnuefi/elf_arm_efi.lds
+@@ -26,6 +26,26 @@ SECTIONS
+    *(.got.plt)
+    *(.got)
+ 
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    . = ALIGN(16);
+diff --git a/gnuefi/elf_ia32_efi.lds b/gnuefi/elf_ia32_efi.lds
+index f27fe5fc6e6..4b7e3f1df39 100644
+--- a/gnuefi/elf_ia32_efi.lds
++++ b/gnuefi/elf_ia32_efi.lds
+@@ -40,6 +40,27 @@ SECTIONS
+    *(.sdata)
+    *(.got.plt)
+    *(.got)
++
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    *(.sbss)
+diff --git a/gnuefi/elf_ia32_fbsd_efi.lds b/gnuefi/elf_ia32_fbsd_efi.lds
+index cd309e24f7f..9e9baec2aca 100644
+--- a/gnuefi/elf_ia32_fbsd_efi.lds
++++ b/gnuefi/elf_ia32_fbsd_efi.lds
+@@ -40,6 +40,27 @@ SECTIONS
+    *(.sdata)
+    *(.got.plt)
+    *(.got)
++
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    *(.sbss)
+diff --git a/gnuefi/elf_ia64_efi.lds b/gnuefi/elf_ia64_efi.lds
+index 190792a0c94..2cda0dd97c7 100644
+--- a/gnuefi/elf_ia64_efi.lds
++++ b/gnuefi/elf_ia64_efi.lds
+@@ -39,6 +39,27 @@ SECTIONS
+    *(.data*)
+    *(.gnu.linkonce.d*)
+    *(.plabel)	/* data whose relocs we want to ignore */
++
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    *(.dynbss)
+diff --git a/gnuefi/elf_mips64el_efi.lds b/gnuefi/elf_mips64el_efi.lds
+index 4d1a077d8f8..0e68084d103 100644
+--- a/gnuefi/elf_mips64el_efi.lds
++++ b/gnuefi/elf_mips64el_efi.lds
+@@ -27,6 +27,26 @@ SECTIONS
+    HIDDEN (_gp = ALIGN (16) + 0x7ff0);
+    *(.got)
+ 
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    . = ALIGN(16);
+diff --git a/gnuefi/elf_x64_efi.lds b/gnuefi/elf_x64_efi.lds
+index c7a105898c8..cb2e3dc00aa 100644
+--- a/gnuefi/elf_x64_efi.lds
++++ b/gnuefi/elf_x64_efi.lds
+@@ -30,6 +30,7 @@ SECTIONS
+   {
+    *(.reloc)
+   }
++
+   . = ALIGN(4096);
+   .data :
+   {
+@@ -39,6 +40,27 @@ SECTIONS
+    *(.got)
+    *(.data*)
+    *(.sdata)
++
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    *(.sbss)
+diff --git a/gnuefi/elf_x64_fbsd_efi.lds b/gnuefi/elf_x64_fbsd_efi.lds
+index 705719bf68b..192aa065d8c 100644
+--- a/gnuefi/elf_x64_fbsd_efi.lds
++++ b/gnuefi/elf_x64_fbsd_efi.lds
+@@ -36,6 +36,27 @@ SECTIONS
+    *(.got)
+    *(.data*)
+    *(.sdata)
++
++   /*
++    * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++    * command, so they don't start with a size.  Because of p2align and the
++    * end/END definitions, and the fact that they're mergeable, they can also
++    * have NULLs which aren't guaranteed to be at the end.
++    */
++   . = ALIGN(16);
++   _init_array = .;
++   *(SORT_BY_NAME(.init_array))
++   _init_array_end = .;
++   __CTOR_LIST__ = .;
++   *(SORT_BY_NAME(.ctors))
++   __CTOR_END__ = .;
++   __DTOR_LIST__ = .;
++   *(SORT_BY_NAME(.dtors))
++   __DTOR_END__ = .;
++   _fini_array = .;
++   *(SORT_BY_NAME(.fini_array))
++   _fini_array_end = .;
++
+    /* the EFI loader doesn't seem to like a .bss section, so we stick
+       it all into .data: */
+    *(.sbss)
+diff --git a/lib/Makefile b/lib/Makefile
+index 8bf94000e33..e7eafc01f1e 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -43,8 +43,8 @@ include $(SRCDIR)/../Make.defaults
+ TOPDIR = $(SRCDIR)/..
+ 
+ CDIR = $(TOPDIR)/..
+-FILES = boxdraw smbios console crc data debug dpath  \
+-        error event exit guid hand hw init lock   \
++FILES = boxdraw smbios console crc data debug dpath \
++        entry error event exit guid hand hw init lock \
+         misc print sread str cmdline \
+ 	runtime/rtlock runtime/efirtlib runtime/rtstr runtime/vm runtime/rtdata  \
+ 	$(ARCH)/initplat $(ARCH)/math $(ARCH)/setjmp
+@@ -62,7 +62,7 @@ FILES += $(ARCH)/uldiv $(ARCH)/ldivmod $(ARCH)/div $(ARCH)/llsl $(ARCH)/llsr \
+ 	 $(ARCH)/mullu
+ endif
+ 
+-OBJS  = $(FILES:%=%.o)
++OBJS  = $(FILES:%=%.o) ctors.o
+ 
+ SUBDIRS = ia32 x64 ia64 aa64 arm mips64el runtime
+ 
+diff --git a/lib/ctors.S b/lib/ctors.S
+new file mode 100644
+index 00000000000..522d31b90d2
+--- /dev/null
++++ b/lib/ctors.S
+@@ -0,0 +1,43 @@
++/*
++ * Try to define the minimal empty init/ctor/dtor/fini_arrays so building with
++ * older or out-of-tree linker scripts will still work.
++ */
++/*
++ * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++ * command, so they don't start with a size.  Because of p2align and the
++ * end/END definitions, and the fact that they're mergeable, they can also
++ * have NULLs which aren't guaranteed to be at the end.
++ */
++	.section .init_array, "aM", @init_array
++	.p2align 3, 0
++	.globl _init_array
++_init_array:
++	.p2align 3, 0
++	.globl _init_array_end
++_init_array_end:
++	.long 0
++	.section .ctors, "aM", @init_array
++	.p2align 3, 0
++	.globl __CTOR_LIST__
++__CTOR_LIST__:
++	.p2align 3, 0
++	.globl __CTOR_END__
++__CTOR_END__:
++	.long 0
++	.section .dtors, "aM", @fini_array
++	.p2align 3, 0
++	.globl __DTOR_LIST__
++__DTOR_LIST__:
++	.p2align 3, 0
++	.globl __DTOR_END__
++__DTOR_END__:
++	.long 0
++	.section .fini_array, "aM", @fini_array
++	.p2align 3, 0
++	.globl _fini_array
++_fini_array:
++	.p2align 3, 0
++	.globl _fini_array_end
++_fini_array_end:
++	.long 0
++
+diff --git a/lib/entry.c b/lib/entry.c
+new file mode 100644
+index 00000000000..d8526084602
+--- /dev/null
++++ b/lib/entry.c
+@@ -0,0 +1,67 @@
++/*
++ * ctors.c
++ * Copyright 2019 Peter Jones <pjones@redhat.com>
++ *
++ */
++
++#include <efi.h>
++#include <efilib.h>
++
++/*
++ * Note that these aren't the using the GNU "CONSTRUCTOR" output section
++ * command, so they don't start with a size.  Because of p2align and the
++ * end/END definitions, and the fact that they're mergeable, they can also
++ * have NULLs which aren't guaranteed to be at the end.
++ */
++extern UINTN _init_array, _init_array_end;
++extern UINTN __CTOR_LIST__, __CTOR_END__;
++extern UINTN _fini_array, _fini_array_end;
++extern UINTN __DTOR_LIST__, __DTOR_END__;
++
++typedef void (*funcp)(void);
++
++static void ctors(void)
++{
++	for (funcp *location = (void *)&_init_array; location < (funcp *)&_init_array_end; location++) {
++		funcp func = *location;
++		if (location != NULL)
++			func();
++	}
++
++	for (funcp *location = (void *)&__CTOR_LIST__; location < (funcp *)&__CTOR_END__; location++) {
++		funcp func = *location;
++		if (location != NULL)
++			func();
++	}
++}
++
++static void dtors(void)
++{
++	for (funcp *location = (void *)&__DTOR_LIST__; location < (funcp *)&__DTOR_END__; location++) {
++		funcp func = *location;
++		if (location != NULL)
++			func();
++	}
++
++	for (funcp *location = (void *)&_fini_array; location < (funcp *)&_fini_array_end; location++) {
++		funcp func = *location;
++		if (location != NULL)
++			func();
++	}
++}
++
++extern EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab);
++
++EFI_STATUS _entry(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
++{
++	EFI_STATUS status;
++	InitializeLib(image, systab);
++
++	ctors();
++	status = efi_main(image, systab);
++	dtors();
++
++	return status;
++}
++
++// vim:fenc=utf-8:tw=75:noet
+diff --git a/lib/init.c b/lib/init.c
+index 4f238c0a2cc..726e493919a 100644
+--- a/lib/init.c
++++ b/lib/init.c
+@@ -46,57 +46,52 @@ Returns:
+     EFI_STATUS              Status;
+     CHAR8                   *LangCode;
+ 
+-    if (!LibInitialized) {
+-        LibInitialized = TRUE;
+-        LibFwInstance = FALSE;
+-        LibImageHandle = ImageHandle;
+-
+-
+-        //
+-        // Set up global pointer to the system table, boot services table,
+-        // and runtime services table
+-        //
+-
+-        ST = SystemTable;
+-        BS = SystemTable->BootServices;
+-        RT = SystemTable->RuntimeServices;
+-//        ASSERT (CheckCrc(0, &ST->Hdr));
+-//        ASSERT (CheckCrc(0, &BS->Hdr));
+-//        ASSERT (CheckCrc(0, &RT->Hdr));
+-
+-
+-        //
+-        // Initialize pool allocation type
+-        //
+-
+-        if (ImageHandle) {
+-            Status = uefi_call_wrapper(
+-                BS->HandleProtocol,
+-                3,
+-                ImageHandle, 
+-                &LoadedImageProtocol,
+-                (VOID*)&LoadedImage
+-            );
+-
+-            if (!EFI_ERROR(Status)) {
+-                PoolAllocationType = LoadedImage->ImageDataType;
+-            }
+-            EFIDebugVariable ();
+-        }
+-
+-        //
+-        // Initialize Guid table
+-        //
+-
+-        InitializeGuid();
+-
+-        InitializeLibPlatform(ImageHandle,SystemTable);
++    if (LibInitialized)
++	return;
++
++    LibInitialized = TRUE;
++    LibFwInstance = FALSE;
++    LibImageHandle = ImageHandle;
++
++    //
++    // Set up global pointer to the system table, boot services table,
++    // and runtime services table
++    //
++
++    ST = SystemTable;
++    BS = SystemTable->BootServices;
++    RT = SystemTable->RuntimeServices;
++    // ASSERT (CheckCrc(0, &ST->Hdr));
++    // ASSERT (CheckCrc(0, &BS->Hdr));
++    // ASSERT (CheckCrc(0, &RT->Hdr));
++
++    //
++    // Initialize pool allocation type
++    //
++
++    if (ImageHandle) {
++	Status = uefi_call_wrapper(
++	    BS->HandleProtocol,
++	    3,
++	    ImageHandle,
++	    &LoadedImageProtocol,
++	    (VOID*)&LoadedImage
++	);
++
++	if (!EFI_ERROR(Status)) {
++	    PoolAllocationType = LoadedImage->ImageDataType;
++	}
++	EFIDebugVariable ();
+     }
+ 
+     //
+-    // 
++    // Initialize Guid table
+     //
+ 
++    InitializeGuid();
++
++    InitializeLibPlatform(ImageHandle,SystemTable);
++
+     if (ImageHandle && UnicodeInterface == &LibStubUnicodeInterface) {
+         LangCode = LibGetVariable (VarLanguage, &EfiGlobalVariable);
+         InitializeUnicodeSupport (LangCode);

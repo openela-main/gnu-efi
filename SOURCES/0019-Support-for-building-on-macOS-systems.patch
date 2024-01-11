@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rick Mark <rickmark@outlook.com>
+Date: Fri, 27 Oct 2017 14:05:39 -0700
+Subject: [PATCH] Support for building on macOS systems
+
+---
+ Make.defaults       | 12 ++++++++++--
+ lib/x86_64/setjmp.S | 15 +++++++++++----
+ 2 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index 5695b2ac1ab..5d34ff47157 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -65,7 +65,7 @@ OS           := $(shell uname -s)
+ HOSTARCH     ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
+ ARCH         ?= $(shell $(HOSTCC) -dumpmachine | cut -f1 -d- | sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
+ 
+-# Get ARCH from the compiler if cross compiling 
++# Get ARCH from the compiler if cross compiling
+ ifneq ($(CROSS_COMPILE),)
+   override ARCH := $(shell $(CC) -dumpmachine | cut -f1 -d-| sed -e s,i[3456789]86,ia32, -e 's,armv[67].*,arm,' )
+ endif
+@@ -165,7 +165,10 @@ ifneq (mingw32,$(findstring mingw32, $(GCCMACHINE)))
+   CFLAGS += -fpic
+ endif
+ 
+-ifeq (FreeBSD, $(findstring FreeBSD, $(OS)))
++IS_FREEBSD = $(findstring FreeBSD, $(OS))
++IS_DARWIN = $(findstring Darwin, $(OS))
++
++ifneq "$(or $(IS_FREEBSD), $(IS_DARWIN))" ""
+ CFLAGS  += $(ARCH3264) -g -O2 -Wall -Wextra -Werror \
+            -fshort-wchar -fno-strict-aliasing \
+            -ffreestanding -fno-stack-protector
+@@ -177,7 +180,12 @@ CFLAGS  += $(ARCH3264) -g -O2 -Wall -Wextra -Werror \
+            $(if $(findstring gcc,$(CC)),-fno-merge-all-constants,)
+ endif
+ 
++ifeq "$(IS_DARWIN)" ""
++ARFLAGS += -U
++else
+ ARFLAGS := rDv
++endif
++
+ ASFLAGS += $(ARCH3264)
+ LDFLAGS	+= -nostdlib --warn-common --no-undefined --fatal-warnings \
+ 	   --build-id=sha1
+diff --git a/lib/x86_64/setjmp.S b/lib/x86_64/setjmp.S
+index e870aef703a..e3e51959719 100644
+--- a/lib/x86_64/setjmp.S
++++ b/lib/x86_64/setjmp.S
+@@ -1,10 +1,14 @@
+ 	.text
+ 	.globl	setjmp
+-#ifndef __MINGW32__
++
++#ifndef __APPLE__
++# ifndef __MINGW32__
+ 	.type setjmp, @function
+-#else
++# else
+ 	.def setjmp; .scl 2; .type 32; .endef
++# endif
+ #endif
++
+ setjmp:
+ 	pop	%rsi
+ 	movq	%rbx,0x00(%rdi)
+@@ -20,11 +24,14 @@ setjmp:
+ 	ret
+ 
+ 	.globl	longjmp
+-#ifndef __MINGW32__
++#ifndef __APPLE__
++# ifndef __MINGW32__
+ 	.type	longjmp, @function
+-#else
++# else
+ 	.def longjmp; .scl 2; .type 32; .endef
++# endif
+ #endif
++
+ longjmp:
+ 	movl	%esi, %eax
+ 	movq	0x00(%rdi), %rbx
