@@ -1,0 +1,47 @@
+From 28793041d7f26a6771837967c495f3ae7ba1134a Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:29 -0400
+Subject: [PATCH 19/25] Add %D to print device paths
+
+Add %D to print device paths.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/print.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/lib/print.c b/lib/print.c
+index ed79c43825b..35e43c03db5 100644
+--- a/lib/print.c
++++ b/lib/print.c
+@@ -1005,6 +1005,7 @@ Routine Description:
+     t       -   EFI time structure
+     g       -   Pointer to GUID
+     r       -   EFI status code (result code)
++    D       -   pointer to Device Path with normal ending.
+ 
+     N       -   Set output attribute to normal
+     H       -   Set output attribute to highlight
+@@ -1167,6 +1168,18 @@ Returns:
+                 Item.Item.pw = Item.Scratch;
+                 break;
+ 
++            case 'D':
++            {
++                EFI_DEVICE_PATH *dp = va_arg(ps->args, EFI_DEVICE_PATH *);
++                CHAR16 *dpstr = DevicePathToStr(dp);
++                StrnCpy(Item.Scratch, dpstr, PRINT_ITEM_BUFFER_LEN);
++                Item.Scratch[PRINT_ITEM_BUFFER_LEN-1] = L'\0';
++                FreePool(dpstr);
++
++                Item.Item.pw = Item.Scratch;
++                break;
++            }
++
+             case 'f':
+                 FloatToString (
+                     Item.Scratch,
+-- 
+2.15.0
+

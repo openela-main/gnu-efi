@@ -1,0 +1,72 @@
+From 656e495d515b0fc1f01add164aa4bba9a49ceb31 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:34 -0400
+Subject: [PATCH 23/25] Call ar in deterministic mode.
+
+We need the x86_64 and i686 builds of .a's to be the same, and that
+means we need to not have timestamps.  Also force the timestamps on disk
+just in case that doesn't work, because RHEL's ar /silently ignores -D/.
+
+v2: use "ar rvD" not "ar rv -D".
+
+It's a wonder anybody ever gets these command line options right, if
+"ar rv -D libfoo.a foo.o" doesn't use deterministic mode (or
+complain), but "ar rvD libfoo.a foo.o" does.
+
+v3: Add a bunch of junk to try to set timestamps to 0 manually
+
+For some reason I'm still getting timestamps in the .a even though ar seems to
+be invoked correctly.  When I do "mock -r rhel-7-build --shell" and run make
+manually, they're fine.  Very strange.
+
+v4: go back to v2, the problem isn't in the make process.
+
+"ar rDv" works just fine, but /usr/lib/rpm/redhat/brp-strip-static-archive is
+calling "%{__strip} -g $for_each.a", and it's rewriting our binary from
+ts/uid/gid of 0/0/0 to $epoch/$UID/$GID.  Awesomely /usr/bin/strip it seems to
+have 3 modes of operation:
+-U: the default, which adds $epoch/$UID/$GID to your binary archive
+    instead of just removing stuff.  Clearly the Principle of Least
+    Surprise is strong here.
+-p: preserve the timestamp from the original .a, but add UID and GID,
+    because this is 1980 and people use ar(1) for archiving stuff they
+    might want that out of.
+-D: Condescend at you in a command line error and explain that -D both
+    is and is not a valid option:
+      /usr/bin/strip: invalid option -- 'D'
+      Usage: /usr/bin/strip <option(s)> in-file(s)
+      Removes symbols and sections from files
+      The options are:
+      ...
+      -D --enable-deterministic-archives
+                  Produce deterministic output when stripping archives
+    So I agree that it's invalid, but I think we may be pronouncing that
+    second vowel differently.  They say in-VAL-id, I say IN-vuh-lid.
+
+Nobody should ever have to run "strace -ttt -v -f -o make.strace make all",
+just to discover the problem isn't even in there.
+
+Related: rhbz#1310782
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Make.defaults | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Make.defaults b/Make.defaults
+index ed4b60c2423..ba743f17893 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -177,7 +177,7 @@ CFLAGS  += $(ARCH3264) -g -O2 -Wall -Wextra -Werror \
+            $(if $(findstring gcc,$(CC)),-fno-merge-all-constants,)
+ endif
+ 
+-ARFLAGS += -U
++ARFLAGS := rDv
+ ASFLAGS += $(ARCH3264)
+ LDFLAGS	+= -nostdlib --warn-common --no-undefined --fatal-warnings \
+ 	   --build-id=sha1
+-- 
+2.15.0
+

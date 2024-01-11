@@ -1,0 +1,30 @@
+From 08a46615c70f5af195443fcf5d0fd425fa329096 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Mon, 7 Aug 2017 13:32:54 -0400
+Subject: [PATCH 02/25] Use ARFLAGS when invoking ar.
+
+The use of ARFLAGS makes these flags overridable.
+The '-U' option is already added to ARFLAGS in Make.defaults.
+
+Signed-off-by: Janosch Hildebrand <jnosh+git@jnosh.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ lib/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/Makefile b/lib/Makefile
+index b8d1ce70d48..0e6410dac55 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -75,7 +75,7 @@ libsubdirs:
+ 	for sdir in $(SUBDIRS); do mkdir -p $$sdir; done
+ 
+ libefi.a: $(OBJS)
+-	$(AR) rv -U $@ $^
++	$(AR) $(ARFLAGS) $@ $^
+ 
+ clean:
+ 	rm -f libefi.a *~ $(OBJS) */*.o
+-- 
+2.15.0
+

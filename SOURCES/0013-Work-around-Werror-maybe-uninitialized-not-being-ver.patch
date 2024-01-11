@@ -1,0 +1,32 @@
+From e861bb3861cca6c6d7b4d42fa915e9e9fa3dc9fc Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:23 -0400
+Subject: [PATCH 13/25] Work around -Werror=maybe-uninitialized not being very
+ bright.
+
+The compiler doesn't believe the loop always executes at least once,
+even though the data in the first array entry doesn't satisfy the exit
+condition.  So just initialize the thing to shut it up.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ apps/route80h.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/route80h.c b/apps/route80h.c
+index e1f62f06824..5272dd3cd44 100644
+--- a/apps/route80h.c
++++ b/apps/route80h.c
+@@ -93,7 +93,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
+ 	InitializeLib(image_handle, systab);
+ 	EFI_PCI_IO *pciio = NULL;
+ 	lpcif_t lpcif;
+-	EFI_STATUS rc;
++	EFI_STATUS rc = EFI_SUCCESS;
+ 	struct {
+ 		uint16_t vendor;
+ 		uint16_t device;
+-- 
+2.15.0
+

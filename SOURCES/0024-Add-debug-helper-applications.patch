@@ -1,0 +1,119 @@
+From b030bfce35fe4b9a4eec88442e2027e4d6ec60de Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:35 -0400
+Subject: [PATCH 24/25] Add debug helper applications
+
+Add debug helper applications.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ apps/setdbg.c   | 37 +++++++++++++++++++++++++++++++++++++
+ apps/unsetdbg.c | 37 +++++++++++++++++++++++++++++++++++++
+ apps/Makefile   |  2 +-
+ 3 files changed, 75 insertions(+), 1 deletion(-)
+ create mode 100644 apps/setdbg.c
+ create mode 100644 apps/unsetdbg.c
+
+diff --git a/apps/setdbg.c b/apps/setdbg.c
+new file mode 100644
+index 00000000000..897140ec342
+--- /dev/null
++++ b/apps/setdbg.c
+@@ -0,0 +1,37 @@
++#include <efi.h>
++#include <efilib.h>
++
++EFI_GUID GRUB_EFI_GRUB_VARIABLE_GUID = {0x91376aff,0xcba6,0x42be,{0x94,0x9d,0x06,0xfd,0xe8,0x11,0x28,0xe8}};
++EFI_GUID SHIM_GUID = {0x605dab50,0xe046,0x4300,{0xab,0xb6,0x3d,0xd8,0x10,0xdd,0x8b,0x23}};
++
++char grubenv[] = "# GRUB Environment Block\n\
++debug=tcp,http,net\n\
++####################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################";
++
++EFI_STATUS
++efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
++{
++	EFI_STATUS status;
++	InitializeLib(image, systab);
++#if 0
++	UINT8 data = 1;
++
++	status = RT->SetVariable(L"SHIM_DEBUG", &SHIM_GUID,
++				 EFI_VARIABLE_NON_VOLATILE |
++				 EFI_VARIABLE_BOOTSERVICE_ACCESS |
++				 EFI_VARIABLE_RUNTIME_ACCESS,
++				 sizeof(data), &data);
++	if (EFI_ERROR(status))
++		Print(L"SetVariable failed: %r\n", status);
++#endif
++
++	status = RT->SetVariable(L"GRUB_ENV", &SHIM_GUID,
++				 EFI_VARIABLE_NON_VOLATILE |
++				 EFI_VARIABLE_BOOTSERVICE_ACCESS |
++				 EFI_VARIABLE_RUNTIME_ACCESS,
++				 sizeof(grubenv)-1, grubenv);
++	if (EFI_ERROR(status))
++		Print(L"SetVariable(GRUB_ENV) failed: %r\n", status);
++
++	return EFI_SUCCESS;
++}
+diff --git a/apps/unsetdbg.c b/apps/unsetdbg.c
+new file mode 100644
+index 00000000000..731e09b1343
+--- /dev/null
++++ b/apps/unsetdbg.c
+@@ -0,0 +1,37 @@
++#include <efi.h>
++#include <efilib.h>
++
++EFI_GUID GRUB_EFI_GRUB_VARIABLE_GUID = {0x91376aff,0xcba6,0x42be,{0x94,0x9d,0x06,0xfd,0xe8,0x11,0x28,0xe8}};
++EFI_GUID SHIM_GUID = {0x605dab50,0xe046,0x4300,{0xab,0xb6,0x3d,0xd8,0x10,0xdd,0x8b,0x23}};
++
++char grubenv[] = "# GRUB Environment Block\n\
++debug=all\n\
++#############################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################";
++
++EFI_STATUS
++efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
++{
++	EFI_STATUS status;
++	UINT8 data = 1;
++	InitializeLib(image, systab);
++
++	status = RT->SetVariable(L"SHIM_DEBUG", &SHIM_GUID,
++				 EFI_VARIABLE_NON_VOLATILE |
++				 EFI_VARIABLE_BOOTSERVICE_ACCESS |
++				 EFI_VARIABLE_RUNTIME_ACCESS,
++				 0, &data);
++	if (EFI_ERROR(status))
++		Print(L"SetVariable failed: %r\n", status);
++
++#if 0
++	status = RT->SetVariable(L"GRUB_ENV", &SHIM_GUID,
++				 EFI_VARIABLE_NON_VOLATILE |
++				 EFI_VARIABLE_BOOTSERVICE_ACCESS |
++				 EFI_VARIABLE_RUNTIME_ACCESS,
++				 sizeof(grubenv)-1, grubenv);
++	if (EFI_ERROR(status))
++		Print(L"SetVariable(GRUB_ENV) failed: %r\n", status);
++#endif
++
++	return EFI_SUCCESS;
++}
+diff --git a/apps/Makefile b/apps/Makefile
+index 4e26444c469..4e1b69a38c8 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -62,7 +62,7 @@ TARGET_APPS = t.efi t2.efi t3.efi t4.efi t5.efi t6.efi \
+ 	      printenv.efi t7.efi t8.efi tcc.efi modelist.efi \
+ 	      route80h.efi drv0_use.efi AllocPages.efi exit.efi \
+ 	      FreePages.efi setjmp.efi debughook.efi debughook.efi.debug \
+-	      bltgrid.efi lfbgrid.efi
++	      bltgrid.efi lfbgrid.efi setdbg.efi unsetdbg.efi
+ TARGET_BSDRIVERS = drv0.efi
+ TARGET_RTDRIVERS =
+ 
+-- 
+2.15.0
+

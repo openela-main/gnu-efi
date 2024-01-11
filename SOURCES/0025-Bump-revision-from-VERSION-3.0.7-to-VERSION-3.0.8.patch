@@ -1,0 +1,26 @@
+From fc5af9e47fb63fbadf6acd218abc60352ce41e31 Mon Sep 17 00:00:00 2001
+From: Nigel Croxon <ncroxon@redhat.com>
+Date: Wed, 14 Mar 2018 14:54:51 -0400
+Subject: [PATCH 25/25] Bump revision from VERSION = 3.0.7  to VERSION = 3.0.8
+
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index a9f7e134e14..4e58e029e7f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -34,7 +34,7 @@
+ #    SUCH DAMAGE.
+ #
+ 
+-VERSION = 3.0.7
++VERSION = 3.0.8
+ 
+ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+ SRCDIR = $(dir $(MKFILE_PATH))
+-- 
+2.15.0
+

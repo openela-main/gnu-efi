@@ -1,0 +1,472 @@
+From 1dac05a1674c42def54d77f17ca2ba73b31beaf8 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Thu, 19 Jul 2018 13:12:44 -0400
+Subject: [PATCH] Get rid of some unused junk that has the BSD 4-clause
+ license.
+
+We don't need any of this, and its license is not GPL compatible.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ inc/protocol/efidbg.h          | 210 ---------------------------------
+ inc/protocol/ia64/eficontext.h | 208 --------------------------------
+ inc/protocol/makefile.hdr      |   4 +-
+ 3 files changed, 1 insertion(+), 421 deletions(-)
+ delete mode 100644 inc/protocol/efidbg.h
+ delete mode 100644 inc/protocol/ia64/eficontext.h
+
+diff --git a/inc/protocol/efidbg.h b/inc/protocol/efidbg.h
+deleted file mode 100644
+index 1f95a70bb42..00000000000
+--- a/inc/protocol/efidbg.h
++++ /dev/null
+@@ -1,210 +0,0 @@
+-/*
+- * Copyright (c) 1999, 2000
+- * Intel Corporation.
+- * All rights reserved.
+- * 
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions
+- * are met:
+- * 
+- * 1. Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer.
+- * 
+- * 2. Redistributions in binary form must reproduce the above copyright
+- *    notice, this list of conditions and the following disclaimer in the
+- *    documentation and/or other materials provided with the distribution.
+- * 
+- * 3. All advertising materials mentioning features or use of this software
+- *    must display the following acknowledgement:
+- * 
+- *    This product includes software developed by Intel Corporation and
+- *    its contributors.
+- * 
+- * 4. Neither the name of Intel Corporation or its contributors may be
+- *    used to endorse or promote products derived from this software
+- *    without specific prior written permission.
+- * 
+- * THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION AND CONTRIBUTORS ``AS IS''
+- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+- * ARE DISCLAIMED.  IN NO EVENT SHALL INTEL CORPORATION OR CONTRIBUTORS BE
+- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+- * THE POSSIBILITY OF SUCH DAMAGE.
+- * 
+- */
+-
+-
+-#ifndef _EFIDBG_H_
+-#define _EFIDBG_H_
+-
+-#include "eficontext.h"
+-#include "efiser.h"
+-
+-typedef struct _DEBUGPORT_16550_CONFIG_DATA {
+-        UINT32							PortAddress;
+-        UINT64                          BaudRate;
+-    	UINT32               			ReceiveFifoDepth;
+-    	UINT32               			Timeout;
+-        UINT8                           Parity;
+-        UINT8                           DataBits;
+-        UINT8                           StopBits;
+-	    UINT32                       	ControlMask;
+-        BOOLEAN							RtsCtsEnable;		// RTS, CTS control
+-} DEBUGPORT_16550_CONFIG_DATA;
+-
+-typedef struct _DEBUGPORT_16550_DEVICE_PATH {
+-        EFI_DEVICE_PATH                 Header;
+-        DEBUGPORT_16550_CONFIG_DATA		ConfigData;
+-} DEBUGPORT_16550_DEVICE_PATH;
+-
+-typedef union {
+-    EFI_DEVICE_PATH                     DevPath;
+-    DEBUGPORT_16550_DEVICE_PATH         Uart;
+-    // add new types of debugport device paths to this union...
+-} DEBUGPORT_DEV_PATH;
+-
+-
+-//
+-// Debug Support protocol {2755590C-6F3C-42FA-9EA4-A3BA543CDA25}
+-//
+-
+-#define DEBUG_SUPPORT_PROTOCOL \
+-{ 0x2755590C, 0x6F3C, 0x42fa, 0x9E, 0xA4, 0xA3, 0xBA, 0x54, 0x3C, 0xDA, 0x25 }
+-
+-
+-typedef UINTN EXCEPTION_TYPE;
+-
+-typedef
+-VOID
+-(*EXCEPTION_HANDLER) (
+-	IN EXCEPTION_TYPE ExceptionType,
+-    IN SYSTEM_CONTEXT *SystemContext
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_REGISTER_TIMER_TICK_CALLBACK) (
+-    IN struct _EFI_DEBUG_SUPPORT_INTERFACE  *This,
+-    IN EXCEPTION_HANDLER	                TimerTickCallback
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_REGISTER_EXCEPTION_HANDLER) (
+-    IN     struct _EFI_DEBUG_SUPPORT_INTERFACE  *This,
+-    IN     EXCEPTION_HANDLER                    ExceptionHandler,
+-    IN     EXCEPTION_TYPE                       ExceptionType
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_IP_CALL_TRACE) (
+-    IN     struct _EFI_DEBUG_SUPPORT_INTERFACE  *This
+-    );
+-
+-
+-#define EFI_DEBUG_SUPPORT_INTERFACE_REVISION     0x00010000
+-
+-typedef struct _EFI_DEBUG_SUPPORT_INTERFACE {
+-    UINT32                          	Revision;
+-    EFI_REGISTER_TIMER_TICK_CALLBACK	RegisterTimerTickCallback;
+-    EFI_REGISTER_EXCEPTION_HANDLER  	RegisterExceptionHandler;
+-    EFI_IP_CALL_TRACE               	IpCallTrace;
+-} EFI_DEBUG_SUPPORT_INTERFACE;
+-
+-
+-//
+-// Debugport io protocol {EBA4E8D2-3858-41EC-A281-2647BA9660D0}
+-//
+-
+-#define DEBUGPORT_IO_PROTOCOL \
+-{ 0XEBA4E8D2, 0X3858, 0X41EC, 0XA2, 0X81, 0X26, 0X47, 0XBA, 0X96, 0X60, 0XD0 }
+- 
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_DEBUGPORT_IO_RESET) (
+-    IN struct _EFI_DEBUGPORT_IO_INTERFACE  	*This
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_DEBUGPORT_IO_READ) (
+-    IN     struct _EFI_DEBUGPORT_IO_INTERFACE	*This,
+-    IN OUT UINTN                    		*BufferSize,
+-    OUT VOID                         		*Buffer
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_DEBUGPORT_IO_WRITE) (
+-    IN     struct _EFI_DEBUGPORT_IO_INTERFACE *This,
+-    IN OUT UINTN                    		*BufferSize,
+-    IN VOID                         		*Buffer
+-    );
+-
+-#define EFI_DEBUGPORT_IO_INTERFACE_REVISION   0x00010000
+-
+-typedef struct _EFI_DEBUGPORT_IO_INTERFACE {
+-    UINT32                          		Revision;
+-    EFI_DEBUGPORT_IO_READ					Read;
+-    EFI_DEBUGPORT_IO_WRITE					Write;
+-    EFI_DEBUGPORT_IO_RESET					Reset;
+-} EFI_DEBUGPORT_IO_INTERFACE;
+-
+-
+-//
+-// Debugport UART16550 control protocol {628EA978-4C26-4605-BC02-A42A496917DD}
+-//
+-
+-#define DEBUGPORT_UART16550_CONTROL_PROTOCOL \
+-{ 0X628EA978, 0X4C26, 0X4605, 0XBC, 0X2, 0XA4, 0X2A, 0X49, 0X69, 0X17, 0XDD }
+- 
+-// Note: The definitions for EFI_PARITY_TYPE, EFI_STOP_BITS_TYPE, and 
+-// SERIAL_IO_MODE are included from efiser.h
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_UART16550_SET_ATTRIBUTES) (
+-    IN struct _EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE  	*This,
+-    IN UINT64                       	BaudRate,
+-    IN UINT32                       	ReceiveFifoDepth,
+-    IN UINT32                       	Timeout,
+-    IN EFI_PARITY_TYPE       			Parity,
+-    IN UINT8                        	DataBits,
+-    IN EFI_STOP_BITS_TYPE    			StopBits
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_UART16550_SET_CONTROL_BITS) (
+-    IN struct _EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE  	*This,
+-    IN UINT32                       	Control
+-    );
+-
+-typedef
+-EFI_STATUS
+-(EFIAPI *EFI_UART16550_GET_CONTROL_BITS) (
+-    IN struct _EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE	*This,
+-    OUT UINT32                      	*Control
+-    );
+-
+-#define EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE_REVISION   0x00010000
+-
+-typedef struct _EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE {
+-    UINT32                          	Revision;
+-	EFI_UART16550_SET_ATTRIBUTES		SetAttributes;
+-	EFI_UART16550_SET_CONTROL_BITS		SetControl;
+-	EFI_UART16550_GET_CONTROL_BITS 		GetControl;
+-	DEBUGPORT_16550_CONFIG_DATA			*Mode;
+-} EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE;
+-        
+-
+-#define DEVICE_PATH_DEBUGPORT DEBUGPORT_IO_PROTOCOL
+-        
+-#endif /* _EFIDBG_H_ */
+diff --git a/inc/protocol/ia64/eficontext.h b/inc/protocol/ia64/eficontext.h
+deleted file mode 100644
+index 1a39a6db1e4..00000000000
+--- a/inc/protocol/ia64/eficontext.h
++++ /dev/null
+@@ -1,208 +0,0 @@
+-/*
+- * Copyright (c) 1999, 2000
+- * Intel Corporation.
+- * All rights reserved.
+- * 
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions
+- * are met:
+- * 
+- * 1. Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer.
+- * 
+- * 2. Redistributions in binary form must reproduce the above copyright
+- *    notice, this list of conditions and the following disclaimer in the
+- *    documentation and/or other materials provided with the distribution.
+- * 
+- * 3. All advertising materials mentioning features or use of this software
+- *    must display the following acknowledgement:
+- * 
+- *    This product includes software developed by Intel Corporation and
+- *    its contributors.
+- * 
+- * 4. Neither the name of Intel Corporation or its contributors may be
+- *    used to endorse or promote products derived from this software
+- *    without specific prior written permission.
+- * 
+- * THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION AND CONTRIBUTORS ``AS IS''
+- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+- * ARE DISCLAIMED.  IN NO EVENT SHALL INTEL CORPORATION OR CONTRIBUTORS BE
+- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+- * THE POSSIBILITY OF SUCH DAMAGE.
+- * 
+- */
+-
+-
+-#ifndef _EFICONTEXT_H_
+-#define _EFICONTEXT_H_
+-
+-
+-//
+-//  IA-64 processor exception types
+-//
+-#define    EXCPT_ALT_DTLB            4
+-#define    EXCPT_DNESTED_TLB         5
+-#define    EXCPT_BREAKPOINT         11
+-#define    EXCPT_EXTERNAL_INTERRUPT	12
+-#define    EXCPT_GEN_EXCEPT         24
+-#define    EXCPT_NAT_CONSUMPTION    26
+-#define    EXCPT_DEBUG_EXCEPT       29
+-#define    EXCPT_UNALIGNED_ACCESS   30
+-#define    EXCPT_FP_FAULT           32
+-#define    EXCPT_FP_TRAP            33
+-#define    EXCPT_TAKEN_BRANCH       35
+-#define    EXCPT_SINGLE_STEP        36
+-
+-//
+-//  IA-64 processor context definition - must be 512 byte aligned!!!
+-//
+-typedef
+-struct {
+-	UINT64 reserved;	// necessary to preserve alignment for the correct bits in UNAT and to insure F2 is 16 byte aligned...
+-    
+-    UINT64 r1;
+-    UINT64 r2;
+-    UINT64 r3;
+-    UINT64 r4;
+-    UINT64 r5;
+-    UINT64 r6;
+-    UINT64 r7;
+-    UINT64 r8;
+-    UINT64 r9;
+-    UINT64 r10;
+-    UINT64 r11;
+-    UINT64 r12;
+-    UINT64 r13;
+-    UINT64 r14;
+-    UINT64 r15;
+-    UINT64 r16;
+-    UINT64 r17;
+-    UINT64 r18;
+-    UINT64 r19;
+-    UINT64 r20;
+-    UINT64 r21;
+-    UINT64 r22;
+-    UINT64 r23;
+-    UINT64 r24;
+-    UINT64 r25;
+-    UINT64 r26;
+-    UINT64 r27;
+-    UINT64 r28;
+-    UINT64 r29;
+-    UINT64 r30;
+-    UINT64 r31;
+-    
+-    UINT64 f2[2];
+-    UINT64 f3[2];
+-    UINT64 f4[2];
+-    UINT64 f5[2];
+-    UINT64 f6[2];
+-    UINT64 f7[2];
+-    UINT64 f8[2];
+-    UINT64 f9[2];
+-    UINT64 f10[2];
+-    UINT64 f11[2];
+-    UINT64 f12[2];
+-    UINT64 f13[2];
+-    UINT64 f14[2];
+-    UINT64 f15[2];
+-    UINT64 f16[2];
+-    UINT64 f17[2];
+-    UINT64 f18[2];
+-    UINT64 f19[2];
+-    UINT64 f20[2];
+-    UINT64 f21[2];
+-    UINT64 f22[2];
+-    UINT64 f23[2];
+-    UINT64 f24[2];
+-    UINT64 f25[2];
+-    UINT64 f26[2];
+-    UINT64 f27[2];
+-    UINT64 f28[2];
+-    UINT64 f29[2];
+-    UINT64 f30[2];
+-    UINT64 f31[2];
+-    
+-    UINT64 pr;
+-    
+-    UINT64 b0;
+-    UINT64 b1;
+-    UINT64 b2;
+-    UINT64 b3;
+-    UINT64 b4;
+-    UINT64 b5;
+-    UINT64 b6;
+-    UINT64 b7;
+-    
+-    // application registers
+-    UINT64 ar_rsc;
+-    UINT64 ar_bsp;
+-    UINT64 ar_bspstore;
+-    UINT64 ar_rnat;
+-
+-    UINT64 ar_fcr;
+-
+-    UINT64 ar_eflag;
+-    UINT64 ar_csd;
+-    UINT64 ar_ssd;
+-    UINT64 ar_cflg;
+-    UINT64 ar_fsr;
+-    UINT64 ar_fir;
+-    UINT64 ar_fdr;
+-
+-    UINT64 ar_ccv;
+-
+-    UINT64 ar_unat;
+-
+-    UINT64 ar_fpsr;
+-    
+-    UINT64 ar_pfs;
+-    UINT64 ar_lc;
+-    UINT64 ar_ec;
+-    
+-    // control registers
+-    UINT64 cr_dcr;
+-    UINT64 cr_itm;
+-    UINT64 cr_iva;
+-    UINT64 cr_pta;
+-    UINT64 cr_ipsr;
+-    UINT64 cr_isr;
+-    UINT64 cr_iip;
+-    UINT64 cr_ifa;
+-    UINT64 cr_itir;
+-    UINT64 cr_iipa;
+-    UINT64 cr_ifs;
+-    UINT64 cr_iim;
+-    UINT64 cr_iha;
+-    
+-    // debug registers
+-    UINT64 dbr0;
+-    UINT64 dbr1;
+-    UINT64 dbr2;
+-    UINT64 dbr3;
+-    UINT64 dbr4;
+-    UINT64 dbr5;
+-    UINT64 dbr6;
+-    UINT64 dbr7;
+-    
+-    UINT64 ibr0;
+-    UINT64 ibr1;
+-    UINT64 ibr2;
+-    UINT64 ibr3;
+-    UINT64 ibr4;
+-    UINT64 ibr5;
+-    UINT64 ibr6;
+-    UINT64 ibr7;
+-    
+-    // virtual registers
+-    UINT64 int_nat;	// nat bits for R1-R31
+-    
+-} SYSTEM_CONTEXT;
+-
+-#endif /* _EFI_CONTEXT_H_ */
+diff --git a/inc/protocol/makefile.hdr b/inc/protocol/makefile.hdr
+index 118d6ba3a08..e66e67889c2 100644
+--- a/inc/protocol/makefile.hdr
++++ b/inc/protocol/makefile.hdr
+@@ -9,8 +9,7 @@
+ INC_DEPS = $(INC_DEPS) \
+     $(SDK_INSTALL_DIR)\include\efi\protocol\efivar.h \
+     $(SDK_INSTALL_DIR)\include\efi\protocol\legacyboot.h \
+-    $(SDK_INSTALL_DIR)\include\efi\protocol\vgaclass.h \
+-    $(SDK_INSTALL_DIR)\include\efi\protocol\efidbg.h \
++    $(SDK_INSTALL_DIR)\include\efi\protocol\vgaclass.h
+ 
+ 
+ !IF "$(PROCESSOR)" == "Ia32"
+@@ -22,7 +21,6 @@ INC_DEPS = $(INC_DEPS) \
+ 
+ !IF "$(PROCESSOR)" == "Ia64"
+ INC_DEPS = $(INC_DEPS) \
+-    $(SDK_INSTALL_DIR)\include\efi\protocol\$(PROCESSOR)\eficontext.h \
+ 
+ 
+ !ENDIF
+-- 
+2.17.1
+

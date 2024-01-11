@@ -1,0 +1,73 @@
+From a46a62b12b58139c31d4288384808365c4053bf2 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Tue, 13 Mar 2018 15:20:21 -0400
+Subject: [PATCH 11/25] Fix some types gcc doesn't like
+
+Most of these come from building on i386 with -Wextra, but they're still
+incorrect everywhere else; they just happen to have identical typedefs
+at other places, so the compiler doesn't care.
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Signed-off-by: Nigel Croxon <ncroxon@redhat.com>
+---
+ apps/AllocPages.c | 2 +-
+ apps/FreePages.c  | 2 +-
+ apps/route80h.c   | 2 +-
+ inc/efilink.h     | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/apps/AllocPages.c b/apps/AllocPages.c
+index 77a082ec0a3..bb81849c26e 100644
+--- a/apps/AllocPages.c
++++ b/apps/AllocPages.c
+@@ -116,7 +116,7 @@ efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
+ 	INTN AllocType = -1;
+ 	INTN MemType = -1;
+ 	INTN NumPages = -1;
+-	UINTN Addr = 0;
++	EFI_PHYSICAL_ADDRESS Addr = 0;
+ 
+ 	InitializeLib(image, systab);
+ 
+diff --git a/apps/FreePages.c b/apps/FreePages.c
+index bbf2f52b4cf..247c75dc2be 100644
+--- a/apps/FreePages.c
++++ b/apps/FreePages.c
+@@ -89,7 +89,7 @@ efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
+ 	INTN err = 0;
+ 
+ 	INTN PgCnt = -1;
+-	UINTN PhysAddr = 0;
++	EFI_PHYSICAL_ADDRESS PhysAddr = 0;
+ 
+ 	InitializeLib(image, systab);
+ 
+diff --git a/apps/route80h.c b/apps/route80h.c
+index 8df860c1232..e1f62f06824 100644
+--- a/apps/route80h.c
++++ b/apps/route80h.c
+@@ -129,7 +129,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
+ 	lpcif.rcba &= ~1UL;
+ 
+ 	Print(L"rcba: 0x%8x\n", lpcif.rcba, lpcif.rcba);
+-	set_bit((uint32_t *)(uint64_t)(lpcif.rcba + GCS_OFFSET_ADDR),
++	set_bit((uint32_t *)(intptr_t)(lpcif.rcba + GCS_OFFSET_ADDR),
+ 		     GCS_RPR_SHIFT, GCS_RPR_PCI);
+ 
+ 	return EFI_SUCCESS;
+diff --git a/inc/efilink.h b/inc/efilink.h
+index b2ff4fa2f87..cc5aa2dc57b 100644
+--- a/inc/efilink.h
++++ b/inc/efilink.h
+@@ -142,7 +142,7 @@ typedef struct _LIST_ENTRY {
+ //  EFI_FIELD_OFFSET - returns the byte offset to a field within a structure
+ //
+ 
+-#define EFI_FIELD_OFFSET(TYPE,Field) ((UINTN)(&(((TYPE *) 0)->Field)))
++#define EFI_FIELD_OFFSET(TYPE,Field) ((UINTN)(intptr_t)(&(((TYPE *) 0)->Field)))
+ 
+ //
+ //  CONTAINING_RECORD - returns a pointer to the structure
+-- 
+2.15.0
+
