@@ -44,3 +44,4 @@ Patch0043: 0043-lfbgrid-Make-pointer-size-testing-not-arch-name-depe.patch
 Patch0044: 0044-Fix-the-arch-subdirs-in-.gitignore.patch
 Patch0045: 0045-Use-CFLAGS-with-gcc-print-libgcc-file-name-to-get-th.patch
 Patch0046: 0046-CFLAGS-add-Wno-pointer-sign.patch
+Patch0047: 0047-aarch64-makefile-Pass-no-warn-rwx-segments-to-the-li.patch

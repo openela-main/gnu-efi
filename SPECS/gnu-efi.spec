@@ -2,7 +2,7 @@ Name: gnu-efi
 Epoch: 1
 Version: 3.0.11
 %global tarball_version 3.0.9
-Release: 8%{?dist}%{?buildid}
+Release: 9%{?dist}%{?buildid}
 Summary: Development Libraries and headers for EFI
 License: BSD 
 URL: https://sourceforge.net/projects/gnu-efi/
@@ -178,6 +178,10 @@ find %{buildroot}/%{_prefix}/ -type l | sed 's,%{buildroot}/\+,/,' > compat.lst
 %endif
 
 %changelog
+* Tue Jun 30 2026 Nicolas Frayer <nfrayer@redhat.com> - 3.0.11-9
+- aarch64/raw: Pass --no-warn-rwx-segments to the linker
+- Resolves: #RHEL-183536
+
 * Mon Aug 09 2021 Mohan Boddu <mboddu@redhat.com>
 - Rebuilt for IMA sigs, glibc 2.34, aarch64 flags
   Related: rhbz#1991688

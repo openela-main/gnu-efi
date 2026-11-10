@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nicolas Frayer <nfrayer@redhat.com>
+Date: Tue, 30 Jun 2026 11:07:01 +0200
+Subject: [PATCH] aarch64/makefile: Pass --no-warn-rwx-segments to the linker
+
+temporary file t.so contains a RWX segment which results
+in a warning and the build fails with --fatal-warnings
+
+Signed-off-by: Nicolas Frayer <nfrayer@redhat.com>
+---
+ Make.rules | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Make.rules b/Make.rules
+index 8cb93b0a0392..daa07185d770 100644
+--- a/Make.rules
++++ b/Make.rules
+@@ -46,7 +46,7 @@
+ 		$(FORMAT) $*.so $@
+ 
+ %.so: %.o
+-	$(LD) $(LDFLAGS) $^ -o $@ $(LOADLIBES)
++	$(LD) $(LDFLAGS) --no-warn-rwx-segments $^ -o $@ $(LOADLIBES)
+ 
+ %.o: %.c
+ 	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
